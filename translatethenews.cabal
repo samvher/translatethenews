@@ -28,10 +28,13 @@ executable translatethenews
                      , translatethenews
                      , bytestring
                      , cryptohash-sha256
+                     , digestive-functors
+                     , digestive-functors-lucid
                      , http-types
                      , lucid
                      , postgresql-simple
                      , Spock
+                     , Spock-digestive
                      , text
                      , transformers
   default-language:    Haskell2010
