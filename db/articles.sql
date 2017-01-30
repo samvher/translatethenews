@@ -6,4 +6,5 @@ CREATE TABLE articles (
   , url            text not null
   , summary        text
   , orig_lang      text not null
+  , body           text not null
 );

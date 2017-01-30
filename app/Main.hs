@@ -5,10 +5,15 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE QuasiQuotes #-}
 
+-- TODO: Clean out unused dependencies and extensions
+
 module Main where
 
 import Article
 import ConnInfo                         ( ttnConnInfo )
+import Types
+import Util
+import View
 
 import Control.Monad
 import Crypto.Hash.SHA256               ( hash )
@@ -35,26 +40,6 @@ import qualified Database.PostgreSQL.Simple as Pg
 import qualified Database.PostgreSQL.Simple.FromRow as Pg
 import qualified Database.PostgreSQL.Simple.ToRow as Pg
 
--- Session info
-
-data TTNSes =
-    TTNSes {
-      sessUser :: Maybe User
-    } deriving ( Read, Show )
-
-defSession :: TTNSes
-defSession =
-    TTNSes {
-      sessUser = Nothing
-    }
-
--- State info
-
-data TTNSt = TTNSt ()
-
-defState :: TTNSt
-defState = TTNSt ()
-
 -- PostgreSQL info
 -- Login info in ConnInfo.hs in this directory (gitignored)
 
@@ -62,12 +47,6 @@ dbConn :: PoolOrConn Pg.Connection
 dbConn = PCConn (ConnBuilder (Pg.connect ttnConnInfo)
                              Pg.close
                              (PoolCfg 5 5 60))
-
--- Spock types for our use
-
-type TTNAction ctx = SpockActionCtx ctx Pg.Connection TTNSes TTNSt
-type TTNCfg        = SpockCfg           Pg.Connection TTNSes TTNSt
-type TTNMonad  ctx = SpockCtxM      ctx Pg.Connection TTNSes TTNSt ()
 
 -- The web app
 
@@ -82,7 +61,7 @@ app = prehook initHook $ do
             getpost "register" processRegistration
             getpost "login"    processLogin
         prehook authHook $
-            get     "test"     $ lucid hello
+            getpost "article"  processArticle
 
 main :: IO ()
 main = do cfg <- getCfg
@@ -119,28 +98,10 @@ noAccessPage :: Text -> TTNAction ctx a
 noAccessPage msg = do setStatus status403
                       lucid . pageTemplate $ toHtml msg
 
--- Some reusable functions for forms and form views
-
-checkNE :: Text -> Bool
-checkNE = (> 0) . T.length -- non-empty
-
--- User data type
+-- Registration and login stuff
 
 encodePass :: Text -> Text
 encodePass = pack . show . hash . encodeUtf8
-
-data User = User Text Text Text
-            deriving ( Read, Show )
-
-instance Pg.FromRow User where
-    fromRow = do (userId :: Int) <- Pg.field
-                 name            <- Pg.field
-                 email           <- Pg.field
-                 passHash        <- Pg.field
-                 return (User name email passHash)
-
-instance Pg.ToRow User where
-    toRow (User name email passHash) = Pg.toRow (name, email, passHash)
 
 -- Registration
 
@@ -159,7 +120,7 @@ testUniqueness vals dbConn = Pg.query dbConn sqlTestUniqueness vals
 
 processRegistration :: TTNAction ctx a
 processRegistration = serveForm "register" registerForm renderRegister $ \u ->
-                        do runQuery (insertUser u)
+                        do runQuery $ insertUser u
                            lucid . pageTemplate . toHtml $ show u
 
 registerForm :: Form Text (TTNAction ctx) User
@@ -214,60 +175,4 @@ renderLogin tok view = pageTemplate $
               inputPass_ "login.password" "Password" view
               csrf tok
               submit "Log in")
-
--- Some functions for layout
-
-pageTemplate :: Html () -> Html ()
-pageTemplate contents = html_ (do head_ (title_ "Translate the News")
-                                  body_ contents)
-
-errorPage :: Html () -> Html ()
-errorPage = pageTemplate
-
-lucid :: Html () -> TTNAction ctx a
-lucid document = html (toStrict (renderText document))
-
--- Some functions for form views
-
-type Token = Text
-
-type FormRenderer = Token -> View (Html ()) -> Html ()
-
-viewConstr :: (Text -> View (Html ()) -> Html ())
-           -> Text
-           -> Text
-           -> View (Html ())
-           -> Html ()
-viewConstr f ref lbl view = p_ (do label ref view $ toHtml lbl
-                                   f ref view
-                                   errorList ref view)
-
-inputText_ :: Text -> Text -> View (Html ()) -> Html ()
-inputText_ = viewConstr inputText
-
-inputPass_ :: Text -> Text -> View (Html ()) -> Html ()
-inputPass_ = viewConstr inputPassword
-
-submit :: Text -> Html ()
-submit value = p_ $ input_ [type_ "submit", value_ value]
-
-csrf :: Token -> Html ()
-csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
-
-serveForm :: Text
-          -> Form Text (TTNAction ctx) a
-          -> FormRenderer
-          -> (a -> TTNAction ctx b)
-          -> TTNAction ctx b
-serveForm label form renderer successAction = do
-    tok       <- getCsrfToken
-    (view, l) <- runForm label form
-    case l of
-      Nothing -> lucid . pageTemplate . renderer tok $ fmap toHtml view
-      Just x  -> successAction x
-
--- Pages
-
-hello :: Html ()
-hello = pageTemplate $ h1_ "Hello world!"
 
