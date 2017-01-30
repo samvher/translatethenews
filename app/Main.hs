@@ -1,6 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Main where
@@ -11,6 +13,7 @@ import Control.Monad
 import Control.Monad.Trans.Maybe
 import Crypto.Hash.SHA256               ( hash )
 import Data.ByteString                  ( ByteString )
+import Data.HVect                       hiding ( pack )
 import Data.Maybe                       ( listToMaybe )
 import Data.Text                        ( Text
                                         , pack )
@@ -56,9 +59,10 @@ dbConn = PCConn (ConnBuilder (Pg.connect ttnConnInfo)
 
 -- We're not going to be generic
 
-type TTNAction = SpockAction Pg.Connection TTNSes TTNSt
-type TTNCfg    = SpockCfg    Pg.Connection TTNSes TTNSt
-type TTNMonad  = SpockM      Pg.Connection TTNSes TTNSt
+type TTNAction ctx = SpockActionCtx ctx Pg.Connection TTNSes TTNSt
+-- SpockAction Pg.Connection TTNSes TTNSt
+type TTNCfg = SpockCfg Pg.Connection TTNSes TTNSt
+type TTNMonad ctx = SpockCtxM ctx Pg.Connection TTNSes TTNSt ()
 
 -- The web app
 
@@ -67,20 +71,42 @@ getCfg = do cfg' <- defaultSpockCfg defSession dbConn defState
             return cfg' { spc_csrfProtection = True }
 
 app :: TTNMonad ()
-app = do get root $ lucid hello
-         get "register" $ do tok <- getCsrfToken
-                             lucid (register tok)
-         post "register" processRegistration
-         getpost "login" $ do s <- readSession
-                              case s of
-                                TTNSes Nothing  -> processLogin
-                                TTNSes (Just u) ->
-                                    lucid $ pageTemplate $ 
-                                      toHtml ("Already logged in" :: Text)
+app = prehook initHook $ do
+        get root $ lucid hello
+        get "register" $ do tok <- getCsrfToken
+                            lucid (register tok)
+        post "register" processRegistration
+        getpost "login" $ do s <- readSession
+                             case s of
+                               TTNSes Nothing  -> processLogin
+                               TTNSes (Just u) ->
+                                   lucid $ pageTemplate $ 
+                                     toHtml ("Already logged in" :: Text)
+        prehook authHook . get "test" $ lucid hello
 
 main :: IO ()
 main = do cfg <- getCfg
           runSpock 3000 (spock cfg app)
+
+-- Authentication stuff
+
+initHook :: TTNAction () (HVect '[])
+initHook = return HNil
+
+getUserFromSession :: TTNSes -> Maybe User
+getUserFromSession (TTNSes u) = u
+
+authHook :: TTNAction (HVect xs) (HVect (User ': xs))
+authHook = do oldCtx <- getContext
+              sess   <- readSession
+              let mUser = getUserFromSession sess
+              case mUser of
+                Nothing   -> noAccessPage "Sorry, no access! Log in first."
+                Just user -> return (user :&: oldCtx)
+
+noAccessPage :: Text -> TTNAction ctx a
+noAccessPage msg = do setStatus status403
+                      lucid . pageTemplate $ toHtml msg
 
 -- Registration processing
 
@@ -90,7 +116,7 @@ encodePass = pack . show . hash . encodeUtf8
 data User = User Text Text Text
             deriving ( Read, Show )
 
-userFromPOST :: TTNAction (Maybe User)
+userFromPOST :: TTNAction ctx (Maybe User)
 userFromPOST = runMaybeT $ do
   name       <- MaybeT (param "name")
   email      <- MaybeT (param "email")
@@ -119,7 +145,7 @@ insertUser user dbConn = do
 
 -- TODO: Check existing users
 -- TODO: Validation
-processRegistration :: TTNAction ()
+processRegistration :: TTNAction ctx ()
 processRegistration = do
     maybeNewUser <- userFromPOST
     case maybeNewUser of
@@ -134,7 +160,7 @@ sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
 getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
 getUsers creds dbConn = Pg.query dbConn sqlGetUser creds
 
-processLogin :: TTNAction ()
+processLogin :: TTNAction ctx ()
 processLogin = do tok <- getCsrfToken
                   (v, l) <- runForm "login" loginForm
                   case l of
@@ -145,7 +171,7 @@ processLogin = do tok <- getCsrfToken
 renderForm :: FormRenderer -> Text -> View Text -> Html ()
 renderForm fr tok view = fr tok $ fmap toHtml view
 
-loginForm :: Form Text TTNAction User
+loginForm :: Form Text (TTNAction ctx) User
 loginForm = "login" .: validateM findUser (readCreds
     <$> "username" .: check "No username supplied" checkNE (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
@@ -174,7 +200,7 @@ pageTemplate contents = html_ (do head_ (title_ "Translate the News")
 errorPage :: Html () -> Html ()
 errorPage = pageTemplate
 
-lucid :: Html () -> TTNAction ()
+lucid :: Html () -> TTNAction ctx a
 lucid document = html (toStrict (renderText document))
 
 -- Some functions for form views
