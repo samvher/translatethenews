@@ -38,10 +38,16 @@ import qualified Database.PostgreSQL.Simple.ToRow as Pg
 
 -- Session info
 
-data TTNSes = TTNSes (Maybe User)
+data TTNSes =
+    TTNSes {
+      sessUser :: Maybe User
+    } deriving ( Read, Show )
 
 defSession :: TTNSes
-defSession = TTNSes Nothing
+defSession =
+    TTNSes {
+      sessUser = Nothing
+    }
 
 -- State info
 
@@ -61,9 +67,8 @@ dbConn = PCConn (ConnBuilder (Pg.connect ttnConnInfo)
 -- We're not going to be generic
 
 type TTNAction ctx = SpockActionCtx ctx Pg.Connection TTNSes TTNSt
--- SpockAction Pg.Connection TTNSes TTNSt
-type TTNCfg = SpockCfg Pg.Connection TTNSes TTNSt
-type TTNMonad ctx = SpockCtxM ctx Pg.Connection TTNSes TTNSt ()
+type TTNCfg        = SpockCfg           Pg.Connection TTNSes TTNSt
+type TTNMonad  ctx = SpockCtxM      ctx Pg.Connection TTNSes TTNSt ()
 
 -- The web app
 
@@ -89,14 +94,20 @@ main = do cfg <- getCfg
 initHook :: TTNAction () (HVect '[])
 initHook = return HNil
 
-getUserFromSession :: TTNSes -> Maybe User
-getUserFromSession (TTNSes u) = u
+getUserFromSession :: TTNAction ctx (Maybe User)
+getUserFromSession = do (TTNSes u) <- readSession
+                        return u
+
+visitorLoggedIn :: TTNAction ctx Bool
+visitorLoggedIn = do u <- sessUser <$> readSession
+                     return $ case u of
+                       Nothing -> False
+                       Just _  -> True
 
 authHook :: TTNAction (HVect xs) (HVect (User ': xs))
 authHook = do oldCtx <- getContext
-              sess   <- readSession
-              let mUser = getUserFromSession sess
-              case mUser of
+              u      <- getUserFromSession
+              case u of
                 Nothing   -> noAccessPage "Sorry, no access! Log in first."
                 Just user -> return (user :&: oldCtx)
 
@@ -104,10 +115,10 @@ data IsGuest = IsGuest
 
 guestOnlyHook :: TTNAction (HVect xs) (HVect (IsGuest ': xs))
 guestOnlyHook = do oldCtx     <- getContext
-                   (TTNSes u) <- readSession
-                   case u of
-                     Nothing   -> return (IsGuest :&: oldCtx)
-                     Just user -> noAccessPage "You're already logged in!"
+                   loggedIn   <- visitorLoggedIn
+                   if loggedIn
+                     then noAccessPage "You're already logged in!"
+                     else return (IsGuest :&: oldCtx)
 
 noAccessPage :: Text -> TTNAction ctx a
 noAccessPage msg = do setStatus status403
@@ -199,7 +210,7 @@ processLogin = do tok <- getCsrfToken
                   (v, l) <- runForm "login" loginForm
                   case l of
                     Nothing -> lucid . pageTemplate $ renderForm renderLogin tok v
-                    Just u  -> do writeSession $ TTNSes (Just u)
+                    Just u  -> do modifySession $ \s -> s { sessUser = Just u }
                                   lucid . pageTemplate . toHtml $ show u
 
 loginForm :: Form Text (TTNAction ctx) User
@@ -258,13 +269,4 @@ csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 
 hello :: Html ()
 hello = pageTemplate $ h1_ "Hello world!"
-
-register :: Text -> Html ()
-register tok = pageTemplate $
-  form_ [method_ "post", action_ "/register"]
-        (do -- formfield "Username" "name"
-            -- formfield "Email" "email"
-            -- passfield
-            csrf tok
-            submit "Register")
 
