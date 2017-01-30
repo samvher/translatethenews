@@ -10,11 +10,9 @@ module Main where
 import ConnInfo                         ( ttnConnInfo )
 
 import Control.Monad
-import Control.Monad.Trans.Maybe
 import Crypto.Hash.SHA256               ( hash )
 import Data.ByteString                  ( ByteString )
-import Data.HVect                       hiding ( null
-                                               , pack )
+import Data.HVect                       hiding ( null, pack )
 import Data.Maybe                       ( listToMaybe )
 import Data.Text                        ( Text
                                         , pack )
@@ -64,7 +62,7 @@ dbConn = PCConn (ConnBuilder (Pg.connect ttnConnInfo)
                              Pg.close
                              (PoolCfg 5 5 60))
 
--- We're not going to be generic
+-- Spock types for our use
 
 type TTNAction ctx = SpockActionCtx ctx Pg.Connection TTNSes TTNSt
 type TTNCfg        = SpockCfg           Pg.Connection TTNSes TTNSt
@@ -126,9 +124,6 @@ noAccessPage msg = do setStatus status403
 
 -- Some reusable functions for forms and form views
 
-renderForm :: FormRenderer -> Text -> View Text -> Html ()
-renderForm fr tok view = fr tok $ fmap toHtml view
-
 checkNE :: Text -> Bool
 checkNE = (> 0) . T.length -- non-empty
 
@@ -168,13 +163,10 @@ sqlTestUniqueness = [sql| SELECT * FROM users WHERE name = ? OR email = ? |]
 testUniqueness :: (Text, Text) -> Pg.Connection -> IO [User]
 testUniqueness vals dbConn = Pg.query dbConn sqlTestUniqueness vals
 
-processRegistration :: TTNAction ctx ()
-processRegistration = do tok <- getCsrfToken
-                         (v, l) <- runForm "register" registerForm
-                         case l of
-                           Nothing -> lucid . pageTemplate $ renderForm renderRegister tok v
-                           Just u -> do runQuery (insertUser u)
-                                        lucid . pageTemplate . toHtml $ show u
+processRegistration :: TTNAction ctx a
+processRegistration = serveForm "register" registerForm renderRegister $ \u ->
+                        do runQuery (insertUser u)
+                           lucid . pageTemplate . toHtml $ show u
 
 registerForm :: Form Text (TTNAction ctx) User
 registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
@@ -206,12 +198,9 @@ getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
 getUsers creds dbConn = Pg.query dbConn sqlGetUser creds
 
 processLogin :: TTNAction ctx ()
-processLogin = do tok <- getCsrfToken
-                  (v, l) <- runForm "login" loginForm
-                  case l of
-                    Nothing -> lucid . pageTemplate $ renderForm renderLogin tok v
-                    Just u  -> do modifySession $ \s -> s { sessUser = Just u }
-                                  lucid . pageTemplate . toHtml $ show u
+processLogin = serveForm "login" loginForm renderLogin $ \u ->
+                 do modifySession $ \s -> s { sessUser = Just u }
+                    lucid . pageTemplate . toHtml $ show u
 
 loginForm :: Form Text (TTNAction ctx) User
 loginForm = "login" .: validateM findUser (readCreds
@@ -264,6 +253,18 @@ submit value = p_ $ input_ [type_ "submit", value_ value]
 
 csrf :: Text -> Html ()
 csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
+
+serveForm :: Text
+          -> Form Text (TTNAction ctx) a
+          -> FormRenderer
+          -> (a -> TTNAction ctx b)
+          -> TTNAction ctx b
+serveForm label form renderer successAction = do
+    tok       <- getCsrfToken
+    (view, l) <- runForm label form
+    case l of
+      Nothing -> lucid . pageTemplate . renderer tok $ fmap toHtml view
+      Just x  -> successAction x
 
 -- Pages
 
