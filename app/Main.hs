@@ -1,11 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
 import ConnInfo                         ( ttnConnInfo )
 
+import Control.Monad
+import Control.Monad.IO.Class           ( liftIO )
 import Control.Monad.Trans.Maybe
 import Crypto.Hash.SHA256               ( hash )
 import Data.ByteString                  ( ByteString )
@@ -129,31 +132,6 @@ processRegistration = do
 data LoginData = LoginData Text Text
                  deriving ( Read, Show )
 
-loginForm :: Form Text TTNAction LoginData
-loginForm = mkLoginData
-    <$> "username" .: check "No username" checkNE (text Nothing)
-    <*> "password" .: check "No password" checkNE (text Nothing)
-  where mkLoginData u p = LoginData u $ encodePass p
-        checkNE = (> 0) . T.length -- non-empty
-
-loginView :: Text -> View (Html ()) -> Html ()
-loginView tok view = pageTemplate $
-    form_ [method_ "post", action_ "/login"]
-          (do label "username" view (toHtml ("Username" :: Text))
-              inputText "username" view
-              errorList "username" view
-              label "password" view (toHtml ("Password" :: Text))
-              inputPassword "password" view
-              errorList "password" view
-              csrf tok
-              submit "Log in")
-
-loginFromPOST :: TTNAction (Maybe LoginData)
-loginFromPOST = runMaybeT $ do
-  name     <- MaybeT (param "name")
-  password <- MaybeT (param "password")
-  return $ LoginData name (encodePass password)
-
 sqlGetUser :: Pg.Query
 sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
 
@@ -165,16 +143,28 @@ processLogin = do tok <- getCsrfToken
                   (v, l) <- runForm "login" loginForm
                   case l of
                     Nothing -> lucid . pageTemplate $ loginView tok (fmap toHtml v)
-                    Just l  -> lucid . pageTemplate $ toHtml (show l)
+                    Just dude -> lucid . pageTemplate . toHtml $ show dude
 
--- processLogin = do user <- tryLogin
---                   case user of
---                     Nothing -> lucid $ errorPage "Login failed"
---                     Just dude -> do writeSession $ TTNSes (Just dude)
---                                     lucid $ pageTemplate (toHtml $ show dude)
---   where tryLogin = runMaybeT $ do loginData <- MaybeT loginFromPOST
---                                   let results = runQuery (getUser loginData)
---                                   MaybeT (listToMaybe <$> results)
+loginForm :: Form Text TTNAction LoginData
+loginForm = "login" .: checkM "Invalid credentials" checkLogin (mkLoginData
+    <$> "username" .: check "No username supplied" checkNE (text Nothing)
+    <*> "password" .: check "No password supplied" checkNE (text Nothing))
+  where mkLoginData u p = LoginData u $ encodePass p
+        checkNE = (> 0) . T.length -- non-empty
+        checkLogin loginData = not . null <$> runQuery (getUser loginData)
+
+loginView :: Text -> View (Html ()) -> Html ()
+loginView tok view = pageTemplate $
+    form_ [method_ "post", action_ "/login"]
+          (do errorList "login" view
+              label "login.username" view (toHtml ("Username" :: Text))
+              inputText "login.username" view
+              errorList "login.username" view
+              label "login.password" view (toHtml ("Password" :: Text))
+              inputPassword "login.password" view
+              errorList "login.password" view
+              csrf tok
+              submit "Log in")
 
 -- Some functions for view
 
@@ -196,27 +186,11 @@ hello = pageTemplate $ h1_ "Hello world!"
 register :: Text -> Html ()
 register tok = pageTemplate $
   form_ [method_ "post", action_ "/register"]
-        (do formfield "Username" "name"
-            formfield "Email" "email"
-            passfield
+        (do -- formfield "Username" "name"
+            -- formfield "Email" "email"
+            -- passfield
             csrf tok
             submit "Register")
-
-login :: Text -> Html ()
-login tok = pageTemplate $
-  form_ [method_ "post", action_ "/login"]
-        (do formfield "Username" "name"
-            passfield
-            csrf tok
-            submit "Log in")
-
-formfield :: Text -> Text -> Html ()
-formfield label name = p_ (do label_ $ toHtml label
-                              input_ [name_ name])
-
-passfield :: Html ()
-passfield = p_ (do label_ "Password"
-                   input_ [name_ "password", type_ "password"])
 
 submit :: Text -> Html ()
 submit value = input_ [type_ "submit", value_ value]
