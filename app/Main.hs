@@ -8,7 +8,6 @@ module Main where
 import ConnInfo                         ( ttnConnInfo )
 
 import Control.Monad
-import Control.Monad.IO.Class           ( liftIO )
 import Control.Monad.Trans.Maybe
 import Crypto.Hash.SHA256               ( hash )
 import Data.ByteString                  ( ByteString )
@@ -157,16 +156,12 @@ loginView :: Text -> View (Html ()) -> Html ()
 loginView tok view = pageTemplate $
     form_ [method_ "post", action_ "/login"]
           (do errorList "login" view
-              label "login.username" view (toHtml ("Username" :: Text))
-              inputText "login.username" view
-              errorList "login.username" view
-              label "login.password" view (toHtml ("Password" :: Text))
-              inputPassword "login.password" view
-              errorList "login.password" view
+              inputText_ "login.username" "Username" view
+              inputPass_ "login.password" "Password" view
               csrf tok
               submit "Log in")
 
--- Some functions for view
+-- Some functions for layout
 
 pageTemplate :: Html () -> Html ()
 pageTemplate contents = html_ (do head_ (title_ "Translate the News")
@@ -177,6 +172,29 @@ errorPage = pageTemplate
 
 lucid :: Html () -> TTNAction ()
 lucid document = html (toStrict (renderText document))
+
+-- Some functions for form views
+
+viewConstr :: (Text -> View (Html ()) -> Html ())
+           -> Text
+           -> Text
+           -> View (Html ())
+           -> Html ()
+viewConstr f ref lbl view = p_ (do label ref view $ toHtml lbl
+                                   f ref view
+                                   errorList ref view)
+
+inputText_ :: Text -> Text -> View (Html ()) -> Html ()
+inputText_ = viewConstr inputText
+
+inputPass_ :: Text -> Text -> View (Html ()) -> Html ()
+inputPass_ = viewConstr inputPassword
+
+submit :: Text -> Html ()
+submit value = p_ $ input_ [type_ "submit", value_ value]
+
+csrf :: Text -> Html ()
+csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 
 -- Pages
 
@@ -191,10 +209,4 @@ register tok = pageTemplate $
             -- passfield
             csrf tok
             submit "Register")
-
-submit :: Text -> Html ()
-submit value = input_ [type_ "submit", value_ value]
-
-csrf :: Text -> Html ()
-csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 
