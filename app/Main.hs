@@ -73,15 +73,11 @@ getCfg = do cfg' <- defaultSpockCfg defSession dbConn defState
 app :: TTNMonad ()
 app = prehook initHook $ do
         get root $ lucid hello
-        get "register" $ do tok <- getCsrfToken
-                            lucid (register tok)
-        post "register" processRegistration
-        getpost "login" $ do s <- readSession
-                             case s of
-                               TTNSes Nothing  -> processLogin
-                               TTNSes (Just u) ->
-                                   lucid $ pageTemplate $ 
-                                     toHtml ("Already logged in" :: Text)
+        prehook guestOnlyHook $ do
+            get "register" $ do tok <- getCsrfToken
+                                lucid (register tok)
+            post "register" processRegistration
+            getpost "login" processLogin
         prehook authHook . get "test" $ lucid hello
 
 main :: IO ()
@@ -103,6 +99,15 @@ authHook = do oldCtx <- getContext
               case mUser of
                 Nothing   -> noAccessPage "Sorry, no access! Log in first."
                 Just user -> return (user :&: oldCtx)
+
+data IsGuest = IsGuest
+
+guestOnlyHook :: TTNAction (HVect xs) (HVect (IsGuest ': xs))
+guestOnlyHook = do oldCtx     <- getContext
+                   (TTNSes u) <- readSession
+                   case u of
+                     Nothing   -> return (IsGuest :&: oldCtx)
+                     Just user -> noAccessPage "You're already logged in!"
 
 noAccessPage :: Text -> TTNAction ctx a
 noAccessPage msg = do setStatus status403
