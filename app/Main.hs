@@ -170,7 +170,7 @@ registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
         mkUser u e p = User u e $ encodePass p
         uniqueness (User u e _) = null <$> runQuery (testUniqueness (u, e))
 
-renderRegister :: Text -> View (Html ()) -> Html ()
+renderRegister :: Token -> View (Html ()) -> Html ()
 renderRegister tok view = pageTemplate $
     form_ [method_ "post", action_ "/register"]
           (do errorList "register" view
@@ -205,7 +205,7 @@ loginForm = "login" .: validateM findUser (readCreds
                              f  _  = Error "Multiple users, contact an admin"
                           in f <$> runQuery (getUsers creds)
 
-renderLogin :: Text -> View (Html ()) -> Html ()
+renderLogin :: Token -> View (Html ()) -> Html ()
 renderLogin tok view = pageTemplate $
     form_ [method_ "post", action_ "/login"]
           (do errorList "login" view
@@ -228,9 +228,11 @@ lucid document = html (toStrict (renderText document))
 
 -- Some functions for form views
 
-type FormRenderer = Text -> View (Html ()) -> Html ()
+type Token = Text
 
-viewConstr :: FormRenderer
+type FormRenderer = Token -> View (Html ()) -> Html ()
+
+viewConstr :: (Text -> View (Html ()) -> Html ())
            -> Text
            -> Text
            -> View (Html ())
@@ -248,7 +250,7 @@ inputPass_ = viewConstr inputPassword
 submit :: Text -> Html ()
 submit value = p_ $ input_ [type_ "submit", value_ value]
 
-csrf :: Text -> Html ()
+csrf :: Token -> Html ()
 csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 
 serveForm :: Text
