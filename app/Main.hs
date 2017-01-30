@@ -20,6 +20,7 @@ import Database.PostgreSQL.Simple.SqlQQ ( sql )
 import Lucid
 import Network.HTTP.Types.Status
 import Text.Digestive.Form
+import Text.Digestive.Types
 import Text.Digestive.View
 import Text.Digestive.Lucid.Html5
 import Web.Spock                        hiding ( head, text )
@@ -70,13 +71,12 @@ app = do get root $ lucid hello
          get "register" $ do tok <- getCsrfToken
                              lucid (register tok)
          post "register" processRegistration
---          get "login" $ do s <- readSession
---                           case s of
---                             TTNSes Nothing  -> do tok <- getCsrfToken
---                                                   lucid (login tok)
---                             TTNSes (Just u) -> lucid $ pageTemplate $
---                                                  toHtml ("Already logged in" :: Text)
-         getpost "login" processLogin
+         getpost "login" $ do s <- readSession
+                              case s of
+                                TTNSes Nothing  -> processLogin
+                                TTNSes (Just u) ->
+                                    lucid $ pageTemplate $ 
+                                      toHtml ("Already logged in" :: Text)
 
 main :: IO ()
 main = do cfg <- getCfg
@@ -92,9 +92,9 @@ data User = User Text Text Text
 
 userFromPOST :: TTNAction (Maybe User)
 userFromPOST = runMaybeT $ do
-  name        <- MaybeT (param "name")
-  email       <- MaybeT (param "email")
-  password    <- MaybeT (param "password")
+  name       <- MaybeT (param "name")
+  email      <- MaybeT (param "email")
+  password   <- MaybeT (param "password")
   return $ User name email (encodePass password)
 
 instance Pg.FromRow User where
@@ -128,32 +128,36 @@ processRegistration = do
       Just user -> do runQuery (insertUser user)
                       lucid $ pageTemplate (toHtml $ show user)
 
-data LoginData = LoginData Text Text
-                 deriving ( Read, Show )
-
 sqlGetUser :: Pg.Query
 sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
 
-getUser :: LoginData -> Pg.Connection -> IO [User]
-getUser (LoginData user pass) dbConn = Pg.query dbConn sqlGetUser (user, pass)
+getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
+getUsers creds dbConn = Pg.query dbConn sqlGetUser creds
 
 processLogin :: TTNAction ()
 processLogin = do tok <- getCsrfToken
                   (v, l) <- runForm "login" loginForm
                   case l of
-                    Nothing -> lucid . pageTemplate $ loginView tok (fmap toHtml v)
-                    Just dude -> lucid . pageTemplate . toHtml $ show dude
+                    Nothing -> lucid . pageTemplate $ renderForm renderLogin tok v
+                    Just u  -> do writeSession $ TTNSes (Just u)
+                                  lucid . pageTemplate . toHtml $ show u
 
-loginForm :: Form Text TTNAction LoginData
-loginForm = "login" .: checkM "Invalid credentials" checkLogin (mkLoginData
+renderForm :: FormRenderer -> Text -> View Text -> Html ()
+renderForm fr tok view = fr tok $ fmap toHtml view
+
+loginForm :: Form Text TTNAction User
+loginForm = "login" .: validateM findUser (readCreds
     <$> "username" .: check "No username supplied" checkNE (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
-  where mkLoginData u p = LoginData u $ encodePass p
-        checkNE = (> 0) . T.length -- non-empty
-        checkLogin loginData = not . null <$> runQuery (getUser loginData)
+  where checkNE        = (> 0) . T.length -- non-empty
+        readCreds u p  = (u, encodePass p)
+        findUser creds = let f  [] = Error "Invalid credentials"
+                             f [u] = Success u
+                             f  _  = Error "Multiple users, contact an admin"
+                          in f <$> runQuery (getUsers creds)
 
-loginView :: Text -> View (Html ()) -> Html ()
-loginView tok view = pageTemplate $
+renderLogin :: Text -> View (Html ()) -> Html ()
+renderLogin tok view = pageTemplate $
     form_ [method_ "post", action_ "/login"]
           (do errorList "login" view
               inputText_ "login.username" "Username" view
@@ -175,11 +179,9 @@ lucid document = html (toStrict (renderText document))
 
 -- Some functions for form views
 
-viewConstr :: (Text -> View (Html ()) -> Html ())
-           -> Text
-           -> Text
-           -> View (Html ())
-           -> Html ()
+type FormRenderer = Text -> View (Html ()) -> Html ()
+
+viewConstr :: FormRenderer -> Text -> Text -> View (Html ()) -> Html ()
 viewConstr f ref lbl view = p_ (do label ref view $ toHtml lbl
                                    f ref view
                                    errorList ref view)
