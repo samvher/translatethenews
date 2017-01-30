@@ -7,6 +7,7 @@
 
 module Main where
 
+import Article
 import ConnInfo                         ( ttnConnInfo )
 
 import Control.Monad
@@ -133,9 +134,9 @@ data User = User Text Text Text
 
 instance Pg.FromRow User where
     fromRow = do (userId :: Int) <- Pg.field
-                 name <- Pg.field
-                 email <- Pg.field
-                 passHash <- Pg.field
+                 name            <- Pg.field
+                 email           <- Pg.field
+                 passHash        <- Pg.field
                  return (User name email passHash)
 
 instance Pg.ToRow User where
