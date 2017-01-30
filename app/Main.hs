@@ -92,10 +92,6 @@ main = do cfg <- getCfg
 initHook :: TTNAction () (HVect '[])
 initHook = return HNil
 
-getUserFromSession :: TTNAction ctx (Maybe User)
-getUserFromSession = do (TTNSes u) <- readSession
-                        return u
-
 visitorLoggedIn :: TTNAction ctx Bool
 visitorLoggedIn = do u <- sessUser <$> readSession
                      return $ case u of
@@ -104,7 +100,7 @@ visitorLoggedIn = do u <- sessUser <$> readSession
 
 authHook :: TTNAction (HVect xs) (HVect (User ': xs))
 authHook = do oldCtx <- getContext
-              u      <- getUserFromSession
+              u      <- sessUser <$> readSession
               case u of
                 Nothing   -> noAccessPage "Sorry, no access! Log in first."
                 Just user -> return (user :&: oldCtx)
@@ -149,13 +145,10 @@ instance Pg.ToRow User where
 
 sqlAddUser :: Pg.Query
 sqlAddUser =
-    [sql| INSERT INTO users (name, email, password)
-          VALUES (?, ?, ?) |]
+    [sql| INSERT INTO users (name, email, password) VALUES (?, ?, ?) |]
 
 insertUser :: User -> Pg.Connection -> IO ()
-insertUser user dbConn = do
-    Pg.execute dbConn sqlAddUser user
-    return ()
+insertUser user dbConn = void $ Pg.execute dbConn sqlAddUser user
 
 sqlTestUniqueness :: Pg.Query
 sqlTestUniqueness = [sql| SELECT * FROM users WHERE name = ? OR email = ? |]
@@ -192,12 +185,12 @@ renderRegister tok view = pageTemplate $
 sqlGetUser :: Pg.Query
 sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
 
--- TODO: Validate email
+-- TODO: Validate email, preferably with confirmation email as well
 -- TODO: Check username/email separately
 getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
 getUsers creds dbConn = Pg.query dbConn sqlGetUser creds
 
-processLogin :: TTNAction ctx ()
+processLogin :: TTNAction ctx a
 processLogin = serveForm "login" loginForm renderLogin $ \u ->
                  do modifySession $ \s -> s { sessUser = Just u }
                     lucid . pageTemplate . toHtml $ show u
@@ -237,7 +230,11 @@ lucid document = html (toStrict (renderText document))
 
 type FormRenderer = Text -> View (Html ()) -> Html ()
 
-viewConstr :: FormRenderer -> Text -> Text -> View (Html ()) -> Html ()
+viewConstr :: FormRenderer
+           -> Text
+           -> Text
+           -> View (Html ())
+           -> Html ()
 viewConstr f ref lbl view = p_ (do label ref view $ toHtml lbl
                                    f ref view
                                    errorList ref view)
