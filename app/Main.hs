@@ -174,6 +174,7 @@ registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
         mkUser u e p = User u e $ encodePass p
         uniqueness (User u e _) = null <$> runQuery (testUniqueness (u, e))
 
+renderRegister :: Text -> View (Html ()) -> Html ()
 renderRegister tok view = pageTemplate $
     form_ [method_ "post", action_ "/register"]
           (do errorList "register" view
@@ -188,7 +189,6 @@ renderRegister tok view = pageTemplate $
 sqlGetUser :: Pg.Query
 sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
 
-renderRegister :: Text -> View (Html ()) -> Html ()
 -- TODO: Validate email
 -- TODO: Check username/email separately
 getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
