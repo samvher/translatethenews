@@ -13,7 +13,8 @@ import Control.Monad
 import Control.Monad.Trans.Maybe
 import Crypto.Hash.SHA256               ( hash )
 import Data.ByteString                  ( ByteString )
-import Data.HVect                       hiding ( pack )
+import Data.HVect                       hiding ( null
+                                               , pack )
 import Data.Maybe                       ( listToMaybe )
 import Data.Text                        ( Text
                                         , pack )
@@ -74,11 +75,10 @@ app :: TTNMonad ()
 app = prehook initHook $ do
         get root $ lucid hello
         prehook guestOnlyHook $ do
-            get "register" $ do tok <- getCsrfToken
-                                lucid (register tok)
-            post "register" processRegistration
-            getpost "login" processLogin
-        prehook authHook . get "test" $ lucid hello
+            getpost "register" processRegistration
+            getpost "login"    processLogin
+        prehook authHook $
+            get     "test"     $ lucid hello
 
 main :: IO ()
 main = do cfg <- getCfg
@@ -113,20 +113,21 @@ noAccessPage :: Text -> TTNAction ctx a
 noAccessPage msg = do setStatus status403
                       lucid . pageTemplate $ toHtml msg
 
--- Registration processing
+-- Some reusable functions for forms and form views
+
+renderForm :: FormRenderer -> Text -> View Text -> Html ()
+renderForm fr tok view = fr tok $ fmap toHtml view
+
+checkNE :: Text -> Bool
+checkNE = (> 0) . T.length -- non-empty
+
+-- User data type
 
 encodePass :: Text -> Text
 encodePass = pack . show . hash . encodeUtf8
 
 data User = User Text Text Text
             deriving ( Read, Show )
-
-userFromPOST :: TTNAction ctx (Maybe User)
-userFromPOST = runMaybeT $ do
-  name       <- MaybeT (param "name")
-  email      <- MaybeT (param "email")
-  password   <- MaybeT (param "password")
-  return $ User name email (encodePass password)
 
 instance Pg.FromRow User where
     fromRow = do (userId :: Int) <- Pg.field
@@ -138,6 +139,8 @@ instance Pg.FromRow User where
 instance Pg.ToRow User where
     toRow (User name email passHash) = Pg.toRow (name, email, passHash)
 
+-- Registration
+
 sqlAddUser :: Pg.Query
 sqlAddUser =
     [sql| INSERT INTO users (name, email, password)
@@ -148,20 +151,46 @@ insertUser user dbConn = do
     Pg.execute dbConn sqlAddUser user
     return ()
 
--- TODO: Check existing users
--- TODO: Validation
+sqlTestUniqueness :: Pg.Query
+sqlTestUniqueness = [sql| SELECT * FROM users WHERE name = ? OR email = ? |]
+
+testUniqueness :: (Text, Text) -> Pg.Connection -> IO [User]
+testUniqueness vals dbConn = Pg.query dbConn sqlTestUniqueness vals
+
 processRegistration :: TTNAction ctx ()
-processRegistration = do
-    maybeNewUser <- userFromPOST
-    case maybeNewUser of
-      Nothing -> do lucid $ errorPage "Invalid submission"
-                    setStatus badRequest400
-      Just user -> do runQuery (insertUser user)
-                      lucid $ pageTemplate (toHtml $ show user)
+processRegistration = do tok <- getCsrfToken
+                         (v, l) <- runForm "register" registerForm
+                         case l of
+                           Nothing -> lucid . pageTemplate $ renderForm renderRegister tok v
+                           Just u -> do runQuery (insertUser u)
+                                        lucid . pageTemplate . toHtml $ show u
+
+registerForm :: Form Text (TTNAction ctx) User
+registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
+    <$> "username" .: check "No username supplied" checkNE (text Nothing)
+    <*> "email"    .: check "No email supplied"    checkNE (text Nothing)
+    <*> "password" .: check "No password supplied" checkNE (text Nothing))
+  where nonUniqueMsg = "Username or email already registered"
+        mkUser u e p = User u e $ encodePass p
+        uniqueness (User u e _) = null <$> runQuery (testUniqueness (u, e))
+
+renderRegister tok view = pageTemplate $
+    form_ [method_ "post", action_ "/register"]
+          (do errorList "register" view
+              inputText_ "register.username" "Username" view
+              inputText_ "register.email"    "Email"    view
+              inputPass_ "register.password" "Password" view
+              csrf tok
+              submit "Register")
+
+-- Login
 
 sqlGetUser :: Pg.Query
 sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
 
+renderRegister :: Text -> View (Html ()) -> Html ()
+-- TODO: Validate email
+-- TODO: Check username/email separately
 getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
 getUsers creds dbConn = Pg.query dbConn sqlGetUser creds
 
@@ -173,15 +202,11 @@ processLogin = do tok <- getCsrfToken
                     Just u  -> do writeSession $ TTNSes (Just u)
                                   lucid . pageTemplate . toHtml $ show u
 
-renderForm :: FormRenderer -> Text -> View Text -> Html ()
-renderForm fr tok view = fr tok $ fmap toHtml view
-
 loginForm :: Form Text (TTNAction ctx) User
 loginForm = "login" .: validateM findUser (readCreds
     <$> "username" .: check "No username supplied" checkNE (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
-  where checkNE        = (> 0) . T.length -- non-empty
-        readCreds u p  = (u, encodePass p)
+  where readCreds u p  = (u, encodePass p)
         findUser creds = let f  [] = Error "Invalid credentials"
                              f [u] = Success u
                              f  _  = Error "Multiple users, contact an admin"
