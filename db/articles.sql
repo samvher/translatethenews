@@ -1,6 +1,6 @@
 CREATE TABLE articles (
     id             serial primary key
-  , pub_date       date not null
+  , pub_date       text not null
   , title          text not null
   , author         text not null
   , url            text not null

@@ -1,15 +1,20 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Article where
 
+import Routing
 import Types
 import Util
 import View
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Maybe                       ( listToMaybe )
 import Data.Text                        hiding ( length )
 import Data.Time.Clock
 import Database.PostgreSQL.Simple.SqlQQ ( sql )
@@ -40,9 +45,13 @@ instance Pg.FromField Language where
 instance Pg.ToField Language where
     toField = Pg.toField . pack . show
 
-data Article =
+data Stored = Stored
+data UnStored = UnStored
+
+data Article a =
     Article {
-      artPubDate  :: UTCTime,
+      artID       :: Maybe Int,
+      artPubDate  :: Text,
       artTitle    :: Text,
       artAuthor   :: Text,
       artURL      :: Text,
@@ -51,11 +60,14 @@ data Article =
       artBody     :: Text
     } deriving ( Read, Show )
 
-artLangText :: Article -> Text
-artLangText = pack . show
+artLangText :: Article a -> Text
+artLangText = pack . show . artOrigLang
 
-instance Pg.FromRow Article where
-    fromRow = do (id :: Int) <- Pg.field
+markStored :: Article a -> Article Stored
+markStored Article {..} = Article {..} -- Using RecordWildCards
+
+instance Pg.FromRow (Article Stored) where
+    fromRow = do id          <- Pg.field
                  pub_date    <- Pg.field
                  title       <- Pg.field
                  author      <- Pg.field
@@ -63,7 +75,8 @@ instance Pg.FromRow Article where
                  summary     <- Pg.field
                  orig_lang   <- Pg.field
                  body        <- Pg.field
-                 return Article { artPubDate  = pub_date,
+                 return Article { artID       = id,
+                                  artPubDate  = pub_date,
                                   artTitle    = title,
                                   artAuthor   = author,
                                   artURL      = url,
@@ -71,47 +84,90 @@ instance Pg.FromRow Article where
                                   artOrigLang = orig_lang,
                                   artBody     = body }
 
-instance Pg.ToRow Article where
+instance Pg.ToRow (Article UnStored) where
     toRow a = Pg.toRow ( artPubDate a
                        , artTitle a
                        , artAuthor a
                        , artURL a
                        , artSummary a
                        , artOrigLang a
-                       , artBody a )
+                       , artBody a)
+
+instance Pg.ToRow (Article Stored) where
+    toRow a = Pg.toRow ( artPubDate a
+                       , artTitle a
+                       , artAuthor a
+                       , artURL a
+                       , artSummary a
+                       , artOrigLang a
+                       , artBody a 
+                       , artID a ) -- ^ At the end for UPDATE :/
 
 sqlAddArticle :: Pg.Query
 sqlAddArticle =
     [sql| INSERT INTO articles
                         (pub_date, title, author, url, summary, orig_lang, body)
-                 VALUES (?, ?, ?, ?, ?, ?, ?) |]
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                 RETURNING * |]
 
-insertArticle :: Article -> Pg.Connection -> IO ()
-insertArticle art dbConn = void $ Pg.execute dbConn sqlAddArticle art
+insertArticle :: Article UnStored
+              -> Pg.Connection
+              -> IO (Article Stored)
+insertArticle art dbConn = do [a] <- Pg.query dbConn sqlAddArticle art
+                              return a
+
+sqlEditArticle :: Pg.Query
+sqlEditArticle =
+    [sql| UPDATE articles SET pub_date = ?
+                            , title = ?
+                            , author = ?
+                            , url = ?
+                            , summary = ?
+                            , orig_lang = ?
+                            , body = ?
+          WHERE id = ?
+          RETURNING * |]
+
+updateArticle :: Article Stored -> Pg.Connection -> IO (Article Stored)
+updateArticle art dbConn = do [a] <- Pg.query dbConn sqlEditArticle art
+                              return a
+
+sqlGetArticle :: Pg.Query
+sqlGetArticle = [sql| SELECT * FROM articles WHERE id = ? |]
+
+getArticleById :: Int -> Pg.Connection -> IO (Maybe (Article Stored))
+getArticleById id dbConn =
+    listToMaybe <$> Pg.query dbConn sqlGetArticle (Pg.Only id)
 
 -- TODO: Fix time
 -- TODO: Validate URL
 -- TODO: Uniqueness validation?
-mkArticleForm :: Maybe Article -> Form Text (TTNAction ctx) Article
-mkArticleForm a = "article" .: (Article
-    <$> "pub_date" .: validateM date (text Nothing)
+mkArticleForm :: Maybe (Article a)
+              -> Form Text (TTNAction ctx) (Article Stored)
+mkArticleForm a = "article" .: validateM writeToDb ( Article
+    <$> "id"       .: pure (artID =<< a)
+    <*> "pub_date" .: validateM date (text Nothing)
     <*> "title"    .: check "No title supplied"  checkNE (text $ artTitle  <$> a)
     <*> "author"   .: check "No author supplied" checkNE (text $ artAuthor <$> a)
     <*> "url"      .: check "No URL supplied"    checkNE (text $ artURL    <$> a)
     <*> "summary"  .: validate wrapMaybe (text $ artSummary  =<< a)
-    <*> "language" .: validate readLang  (text $ artLangText <$> a)
+    <*> "language" .: validate readLang (text $ artLangText <$> a)
     <*> "body"     .: check "No body supplied"   checkNE (text $ artBody   <$> a))
-  where date _    = Success <$> liftIO getCurrentTime
+  where date _    = Success . pack . show <$> liftIO getCurrentTime
         wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
         readLang x = let x' = maybeRead $ unpack x
                       in maybe (Error "Language not valid") Success x'
+        writeToDb d = let q = case artID =<< a of
+                                Nothing -> insertArticle
+                                Just _  -> updateArticle . markStored
+                       in Success <$> runQuery (q d)
 
--- TODO: Move next two articles away, maybe
-renderArticleForm :: Token -> View (Html ()) -> Html ()
-renderArticleForm tok view = pageTemplate $
-    form_ [method_ "post", action_ "/article"]
+-- TODO: Move next couple of functions to another module, maybe
+renderArticleForm :: Text -> Token -> View (Html ()) -> Html ()
+renderArticleForm target tok view = pageTemplate $
+    form_ [method_ "post", action_ target]
           (do errorList "article" view
               inputText_ "article.pub_date" "Publication date (ignored)" view
               inputText_ "article.title"    "Title"                      view
@@ -124,8 +180,19 @@ renderArticleForm tok view = pageTemplate $
               submit "Submit article")
 
 processArticle :: TTNAction ctx a
-processArticle = serveForm "article" articleForm renderArticleForm $ \a ->
-                   do runQuery $ insertArticle a
+processArticle = serveForm "article" articleForm renderer $ \a ->
                       lucid . pageTemplate . toHtml $ show a
   where articleForm = mkArticleForm Nothing
+        renderer = renderArticleForm $ renderRoute newArticleR
+
+editArticle :: Int -> TTNAction ctx a
+editArticle aID = do art <- runQuery $ getArticleById aID
+                     let articleForm = mkArticleForm art
+                         renderer = renderArticleForm $ renderRoute editArticleR aID
+                     serveForm "article" articleForm renderer $ \a ->
+                         lucid . pageTemplate . toHtml $ show a
+
+viewArticle :: Int -> TTNAction ctx a
+viewArticle aID = do art <- runQuery $ getArticleById aID
+                     lucid . pageTemplate . toHtml $ show art
 

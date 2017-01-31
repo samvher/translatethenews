@@ -11,6 +11,7 @@ module Main where
 
 import Article
 import ConnInfo                         ( ttnConnInfo )
+import Routing
 import Types
 import Util
 import View
@@ -57,11 +58,13 @@ getCfg = do cfg' <- defaultSpockCfg defSession dbConn defState
 app :: TTNMonad ()
 app = prehook initHook $ do
         get root $ lucid hello
+        get viewArticleR viewArticle
         prehook guestOnlyHook $ do
-            getpost "register" processRegistration
-            getpost "login"    processLogin
-        prehook authHook $
-            getpost "article"  processArticle
+            getpost registerR processRegistration
+            getpost loginR    processLogin
+        prehook authHook $ do
+            getpost newArticleR processArticle
+            getpost editArticleR editArticle
 
 main :: IO ()
 main = do cfg <- getCfg

@@ -63,5 +63,5 @@ serveForm label form renderer successAction = do
     tok       <- getCsrfToken
     (view, l) <- runForm label form
     case l of
-      Nothing -> lucid . pageTemplate . renderer tok $ fmap toHtml view
+      Nothing -> lucid . renderer tok $ fmap toHtml view
       Just x  -> successAction x
