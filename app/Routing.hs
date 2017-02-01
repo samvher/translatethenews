@@ -6,20 +6,16 @@ module Routing where
 import Web.Routing.Combinators
 import Web.Spock
 
-viewArticleR :: Path '[Int] Open
-viewArticleR = "articles" <//> var <//> "view"
+viewArticleR, editArticleR, translateArticleR :: Path '[Int] Open
+viewArticleR      = "articles" <//> var <//> "view"
+editArticleR      = "articles" <//> var <//> "edit"
+translateArticleR = "articles" <//> var <//> "translate"
 
-newArticleR :: Path '[] Open
-newArticleR = "articles" <//> "new"
-
-editArticleR :: Path '[Int] Open
-editArticleR = "articles" <//> var <//> "edit"
-
-listArticlesR :: Path '[] Open
+listArticlesR, newArticleR :: Path '[] Open
+newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
 
-registerR :: Path '[] Open
+loginR, registerR :: Path '[] Open
+loginR    = "login"
 registerR = "register"
 
-loginR :: Path '[] Open
-loginR = "login"
