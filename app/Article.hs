@@ -196,3 +196,10 @@ viewArticle :: Int -> TTNAction ctx a
 viewArticle aID = do art <- runQuery $ getArticleById aID
                      lucid . pageTemplate . toHtml $ show art
 
+sqlListArticles :: Pg.Query
+sqlListArticles = [sql| SELECT * FROM articles |]
+
+-- TODO: Pagination, sorting, etc
+listArticles :: TTNAction ctx a
+listArticles = do (arts :: [Article Stored]) <- runQuery' sqlListArticles
+                  lucid . pageTemplate . toHtml $ show arts

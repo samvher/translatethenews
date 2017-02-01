@@ -7,13 +7,16 @@ import Web.Routing.Combinators
 import Web.Spock
 
 viewArticleR :: Path '[Int] Open
-viewArticleR = "article" <//> var <//> "view"
+viewArticleR = "articles" <//> var <//> "view"
 
 newArticleR :: Path '[] Open
-newArticleR = "article" <//> "new"
+newArticleR = "articles" <//> "new"
 
 editArticleR :: Path '[Int] Open
-editArticleR = "article" <//> var <//> "edit"
+editArticleR = "articles" <//> var <//> "edit"
+
+listArticlesR :: Path '[] Open
+listArticlesR = "articles"
 
 registerR :: Path '[] Open
 registerR = "register"

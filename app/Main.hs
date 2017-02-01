@@ -58,6 +58,7 @@ getCfg = do cfg' <- defaultSpockCfg defSession dbConn defState
 app :: TTNMonad ()
 app = prehook initHook $ do
         get root $ lucid hello
+        get listArticlesR listArticles
         get viewArticleR viewArticle
         prehook guestOnlyHook $ do
             getpost registerR processRegistration
