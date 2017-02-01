@@ -136,7 +136,10 @@ registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
     <*> "email"    .: check "Email not valid" (testPattern emailP) (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
   where nonUniqueMsg = "Username or email already registered"
-        mkUser u e p = User u e $ encodePass p
+        mkUser i u e p = User { uID = i
+                              , uName = u
+                              , uEmail = e
+                              , uPassHash = encodePass p }
         uniqueness u = null <$> runQuery (testUniqueness (uName u, uEmail u))
 
 renderRegister :: Token -> View (Html ()) -> Html ()
