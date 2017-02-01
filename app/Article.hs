@@ -15,7 +15,7 @@ import View
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Maybe                       ( listToMaybe )
+import Data.Maybe                       ( fromJust, listToMaybe )
 import Data.Text                        hiding ( length )
 import Data.Time.Clock
 import Database.PostgreSQL.Simple.SqlQQ ( sql )
@@ -190,22 +190,80 @@ listArticles :: TTNAction ctx a
 listArticles = do (arts :: [Article Stored]) <- runQuery' sqlListArticles
                   lucid . pageTemplate . toHtml $ show arts
 
+data Translation =
+    Translation {
+      trID   :: Maybe Int,
+      trAID  :: Int,
+      trUID  :: Int,
+      trLang :: Language,
+      trBody :: Text
+    } deriving ( Read, Show )
+
+instance Pg.FromRow Translation where
+    fromRow = do id <- Pg.field
+                 aID <- Pg.field
+                 uID <- Pg.field
+                 lang <- Pg.field
+                 body <- Pg.field
+                 return Translation { trID = id
+                                    , trAID = aID
+                                    , trUID = uID
+                                    , trLang = lang
+                                    , trBody = body }
+
+instance Pg.ToRow Translation where
+    toRow t = Pg.toRow ( trAID t
+                       , trUID t
+                       , trLang t
+                       , trBody t )
+
+sqlAddTranslation :: Pg.Query
+sqlAddTranslation =
+    [sql| INSERT INTO translations
+                        (article_id, contributor_id, trans_lang, body)
+                 VALUES (?, ?, ?, ?)
+                 RETURNING * |]
+
+insertTranslation :: Translation -> Pg.Connection -> IO Translation
+insertTranslation tr dbConn = do [t] <- Pg.query dbConn sqlAddTranslation tr
+                                 return t
+
+sqlGetTranslations :: Pg.Query
+sqlGetTranslations = [sql| SELECT * FROM translations
+                             WHERE article_id = ? AND trans_lang = ? |]
+
+getTranslations :: Int -> Language -> TTNAction ctx [Translation]
+getTranslations aID lang = runQuery (\c -> Pg.query c sqlGetTranslations (aID, lang))
+
+mkTranslateForm :: Article Stored -> [Translation] -> Language
+                -> Form Text (TTNAction ctx) Translation
+mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
+    <$> "id"       .: pure Nothing
+    <*> "aid"      .: pure (fromJust $ artID a) -- TODO: make robust
+    <*> "uid"      .: validateM getUser (pure ())
+    <*> "lang"     .: pure lang
+    <*> "body"     .: check "No body supplied"   checkNE (text Nothing) )
+  where writeToDb t = Success <$> runQuery (insertTranslation t)
+        getUser _ = do u <- sessUser <$> readSession
+                       return $ case u of
+                         Nothing -> Error "Not logged in" -- TODO: not quite right
+                         Just u' -> Success $ uID u'
+
+renderTranslate :: Text -> Token -> View (Html ()) -> Html ()
+renderTranslate target tok view = pageTemplate $
+    form_ [method_ "post", action_ target]
+          (do errorList "translate" view
+              inputText_ "translate.body" "Translation" view
+              csrf tok
+              submit "Submit translation")
+
 -- TODO: implement Translation, getTranslations, mkTranslateForm, renderTranslate
 translateArticle :: Int -> Language -> TTNAction ctx a
 translateArticle aID lang = do
-    art <- getArticleById aID
-    lucid . pageTemplate . toHtml $ "Translating " ++ show art ++ " to " ++ show lang
-    -- ts  <- getTranslations aID 
-    -- let translateForm = mkTranslateForm art ts
-    -- serveForm "translate" translateForm renderTranslate $ \t ->
-        -- lucid . pageTemplate . toHtml $ show t
+    art <- fromJust <$> getArticleById aID -- TODO: not robust
+    ts  <- getTranslations aID lang
+    let translateForm = mkTranslateForm art ts lang
+        renderer = renderTranslate $ renderRoute translateArticleR aID lang
+    serveForm "translate" translateForm renderer $ \t ->
+        lucid . pageTemplate . toHtml $ show t
 
--- mkTranslateForm :: Article Stored
---                 -> [Translation]
---                 -> Form Text (TTNAction ctx) Translation
--- 
--- -- Missing language?
--- getTranslations :: Int -> Pg.Connection -> TTNAction ctx [Translation]
--- 
--- renderTranslate :: Text -> Token -> View (Html ()) -> Html ()
--- 

@@ -131,12 +131,13 @@ processRegistration = serveForm "register" registerForm renderRegister $ \u ->
 
 registerForm :: Form Text (TTNAction ctx) User
 registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
-    <$> "username" .: check "No username supplied" checkNE (text Nothing)
+    <$> "uid"      .: pure 0
+    <*> "username" .: check "No username supplied" checkNE (text Nothing)
     <*> "email"    .: check "Email not valid" (testPattern emailP) (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
   where nonUniqueMsg = "Username or email already registered"
         mkUser u e p = User u e $ encodePass p
-        uniqueness (User u e _) = null <$> runQuery (testUniqueness (u, e))
+        uniqueness u = null <$> runQuery (testUniqueness (uName u, uEmail u))
 
 renderRegister :: Token -> View (Html ()) -> Html ()
 renderRegister tok view = pageTemplate $

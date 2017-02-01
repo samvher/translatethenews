@@ -46,18 +46,23 @@ type TTNMonad  ctx = SpockCtxM      ctx Pg.Connection TTNSes TTNSt ()
 
 -- User constructor
 
-data User = User Text Text Text
-            deriving ( Read, Show )
+data User =
+    User {
+      uID       :: Int,
+      uName     :: Text,
+      uEmail    :: Text,
+      uPassHash :: Text
+    } deriving ( Read, Show )
 
 instance Pg.FromRow User where
-    fromRow = do (userId :: Int) <- Pg.field
+    fromRow = do userId          <- Pg.field
                  name            <- Pg.field
                  email           <- Pg.field
                  passHash        <- Pg.field
-                 return (User name email passHash)
+                 return (User userId name email passHash)
 
 instance Pg.ToRow User where
-    toRow (User name email passHash) = Pg.toRow (name, email, passHash)
+    toRow (User _ name email passHash) = Pg.toRow (name, email, passHash)
 
 -- Useful aliases
 
