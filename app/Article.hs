@@ -192,11 +192,13 @@ listArticles = do (arts :: [Article Stored]) <- runQuery' sqlListArticles
 
 data Translation =
     Translation {
-      trID   :: Maybe Int,
-      trAID  :: Int,
-      trUID  :: Int,
-      trLang :: Language,
-      trBody :: Text
+      trID      :: Maybe Int,
+      trAID     :: Int,
+      trUID     :: Int,
+      trLang    :: Language,
+      trTitle   :: Text,
+      trSummary :: Maybe Text,
+      trBody    :: Text
     } deriving ( Read, Show )
 
 instance Pg.FromRow Translation where
@@ -204,24 +206,30 @@ instance Pg.FromRow Translation where
                  aID <- Pg.field
                  uID <- Pg.field
                  lang <- Pg.field
+                 title <- Pg.field
+                 summary <- Pg.field
                  body <- Pg.field
                  return Translation { trID = id
                                     , trAID = aID
                                     , trUID = uID
                                     , trLang = lang
+                                    , trTitle = title
+                                    , trSummary = summary
                                     , trBody = body }
 
 instance Pg.ToRow Translation where
     toRow t = Pg.toRow ( trAID t
                        , trUID t
                        , trLang t
+                       , trTitle t
+                       , trSummary t
                        , trBody t )
 
 sqlAddTranslation :: Pg.Query
 sqlAddTranslation =
     [sql| INSERT INTO translations
-                        (article_id, contributor_id, trans_lang, body)
-                 VALUES (?, ?, ?, ?)
+                        (article_id, contributor_id, trans_lang, title, summary, body)
+                 VALUES (?, ?, ?, ?, ?, ?)
                  RETURNING * |]
 
 insertTranslation :: Translation -> Pg.Connection -> IO Translation
@@ -242,22 +250,28 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
     <*> "aid"      .: pure (fromJust $ artID a) -- TODO: make robust
     <*> "uid"      .: validateM getUser (pure ())
     <*> "lang"     .: pure lang
+    <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
+    <*> "summary"  .: validate wrapMaybe (text Nothing)
     <*> "body"     .: check "No body supplied"   checkNE (text Nothing) )
   where writeToDb t = Success <$> runQuery (insertTranslation t)
         getUser _ = do u <- sessUser <$> readSession
                        return $ case u of
                          Nothing -> Error "Not logged in" -- TODO: not quite right
                          Just u' -> Success $ uID u'
+        wrapMaybe x = if T.length x > 0
+                        then Success $ Just x
+                        else Success Nothing
 
 renderTranslate :: Text -> Token -> View (Html ()) -> Html ()
 renderTranslate target tok view = pageTemplate $
     form_ [method_ "post", action_ target]
           (do errorList "translate" view
-              inputText_ "translate.body" "Translation" view
+              inputText_ "translate.title"   "Title translation"   view
+              inputText_ "translate.summary" "Summary translation" view
+              inputText_ "translate.body"    "Body translation"    view
               csrf tok
               submit "Submit translation")
 
--- TODO: implement Translation, getTranslations, mkTranslateForm, renderTranslate
 translateArticle :: Int -> Language -> TTNAction ctx a
 translateArticle aID lang = do
     art <- fromJust <$> getArticleById aID -- TODO: not robust
