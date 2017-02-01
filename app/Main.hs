@@ -11,6 +11,7 @@ module Main where
 
 import Article
 import ConnInfo                         ( ttnConnInfo )
+import Parsers
 import Routing
 import Types
 import Util
@@ -130,7 +131,7 @@ processRegistration = serveForm "register" registerForm renderRegister $ \u ->
 registerForm :: Form Text (TTNAction ctx) User
 registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
     <$> "username" .: check "No username supplied" checkNE (text Nothing)
-    <*> "email"    .: check "No email supplied"    checkNE (text Nothing)
+    <*> "email"    .: check "Email not valid" (testPattern emailP) (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
   where nonUniqueMsg = "Username or email already registered"
         mkUser u e p = User u e $ encodePass p

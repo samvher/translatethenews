@@ -7,6 +7,7 @@
 
 module Article where
 
+import Parsers
 import Routing
 import Types
 import Util
@@ -139,14 +140,13 @@ getArticleById :: Int -> Pg.Connection -> IO (Maybe (Article Stored))
 getArticleById id dbConn =
     listToMaybe <$> Pg.query dbConn sqlGetArticle (Pg.Only id)
 
--- TODO: Fix time
 -- TODO: Validate URL
 -- TODO: Uniqueness validation?
 mkArticleForm :: Maybe (Article a)
               -> Form Text (TTNAction ctx) (Article Stored)
 mkArticleForm a = "article" .: validateM writeToDb ( Article
     <$> "id"       .: pure (artID =<< a)
-    <*> "pub_date" .: validateM date (text Nothing)
+    <*> "pub_date" .: check "Date not valid" (testPattern dateP) (text Nothing)
     <*> "title"    .: check "No title supplied"  checkNE (text $ artTitle  <$> a)
     <*> "author"   .: check "No author supplied" checkNE (text $ artAuthor <$> a)
     <*> "url"      .: check "No URL supplied"    checkNE (text $ artURL    <$> a)
@@ -169,13 +169,13 @@ renderArticleForm :: Text -> Token -> View (Html ()) -> Html ()
 renderArticleForm target tok view = pageTemplate $
     form_ [method_ "post", action_ target]
           (do errorList "article" view
-              inputText_ "article.pub_date" "Publication date (ignored)" view
-              inputText_ "article.title"    "Title"                      view
-              inputText_ "article.author"   "Author"                     view
-              inputText_ "article.url"      "URL"                        view
-              inputText_ "article.summary"  "Summary"                    view
-              inputText_ "article.language" "Language"                   view
-              inputText_ "article.body"     "Body"                       view
+              inputText_ "article.pub_date" "Publication date (yyyy-mm-dd)" view
+              inputText_ "article.title"    "Title"    view
+              inputText_ "article.author"   "Author"   view
+              inputText_ "article.url"      "URL"      view
+              inputText_ "article.summary"  "Summary"  view
+              inputText_ "article.language" "Language" view
+              inputText_ "article.body"     "Body"     view
               csrf tok
               submit "Submit article")
 
