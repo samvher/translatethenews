@@ -2,15 +2,21 @@
 
 module Types where
 
-import Data.Text                        ( Text , pack )
+import Util
+
+import Data.Text                        ( Text, pack, unpack )
 import Lucid
 import Text.Digestive.View
+import Web.PathPieces
 import Web.Spock                        hiding ( head, text )
 import Web.Spock.Config
 
+import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as Pg
 import qualified Database.PostgreSQL.Simple.FromRow as Pg
 import qualified Database.PostgreSQL.Simple.ToRow as Pg
+import qualified Database.PostgreSQL.Simple.FromField as Pg
+import qualified Database.PostgreSQL.Simple.ToField as Pg
 
 -- Session info
 
@@ -58,3 +64,26 @@ instance Pg.ToRow User where
 type Token = Text
 
 type FormRenderer = Token -> View (Html ()) -> Html ()
+
+-- Article types
+
+data Language = English
+              | Russian
+              | Turkish
+              | Indonesian
+                deriving ( Read, Show )
+
+instance Pg.FromField Language where
+    fromField f dat = read . unpack <$> Pg.fromField f dat
+
+instance Pg.ToField Language where
+    toField = Pg.toField . pack . show
+
+instance PathPiece Language where
+    fromPathPiece = maybeRead . unpack
+    toPathPiece   = pack . show
+
+-- TODO: Not sure where this should go
+
+runQuery' :: Pg.FromRow a => Pg.Query -> TTNAction ctx [a]
+runQuery' q = runQuery $ \c -> Pg.query c q ()

@@ -31,20 +31,6 @@ import qualified Data.Text as T
 import qualified Database.PostgreSQL.Simple as Pg
 import qualified Database.PostgreSQL.Simple.FromRow as Pg
 import qualified Database.PostgreSQL.Simple.ToRow as Pg
-import qualified Database.PostgreSQL.Simple.FromField as Pg
-import qualified Database.PostgreSQL.Simple.ToField as Pg
-
-data Language = English
-              | Russian
-              | Turkish
-              | Indonesian
-                deriving ( Read, Show )
-
-instance Pg.FromField Language where
-    fromField f dat = read . unpack <$> Pg.fromField f dat
-
-instance Pg.ToField Language where
-    toField = Pg.toField . pack . show
 
 data Stored = Stored
 data UnStored = UnStored
@@ -136,9 +122,9 @@ updateArticle art dbConn = do [a] <- Pg.query dbConn sqlEditArticle art
 sqlGetArticle :: Pg.Query
 sqlGetArticle = [sql| SELECT * FROM articles WHERE id = ? |]
 
-getArticleById :: Int -> Pg.Connection -> IO (Maybe (Article Stored))
-getArticleById id dbConn =
-    listToMaybe <$> Pg.query dbConn sqlGetArticle (Pg.Only id)
+getArticleById :: Int -> TTNAction ctx (Maybe (Article Stored))
+getArticleById id = listToMaybe <$> runQuery (\c ->
+                        Pg.query c sqlGetArticle (Pg.Only id))
 
 -- TODO: Validate URL
 -- TODO: Uniqueness validation?
@@ -186,14 +172,14 @@ processArticle = serveForm "article" articleForm renderer $ \a ->
         renderer = renderArticleForm $ renderRoute newArticleR
 
 editArticle :: Int -> TTNAction ctx a
-editArticle aID = do art <- runQuery $ getArticleById aID
+editArticle aID = do art <- getArticleById aID
                      let articleForm = mkArticleForm art
                          renderer = renderArticleForm $ renderRoute editArticleR aID
                      serveForm "article" articleForm renderer $ \a ->
                          lucid . pageTemplate . toHtml $ show a
 
 viewArticle :: Int -> TTNAction ctx a
-viewArticle aID = do art <- runQuery $ getArticleById aID
+viewArticle aID = do art <- getArticleById aID
                      lucid . pageTemplate . toHtml $ show art
 
 sqlListArticles :: Pg.Query
@@ -203,3 +189,23 @@ sqlListArticles = [sql| SELECT * FROM articles |]
 listArticles :: TTNAction ctx a
 listArticles = do (arts :: [Article Stored]) <- runQuery' sqlListArticles
                   lucid . pageTemplate . toHtml $ show arts
+
+-- TODO: implement Translation, getTranslations, mkTranslateForm, renderTranslate
+translateArticle :: Int -> Language -> TTNAction ctx a
+translateArticle aID lang = do
+    art <- getArticleById aID
+    lucid . pageTemplate . toHtml $ "Translating " ++ show art ++ " to " ++ show lang
+    -- ts  <- getTranslations aID 
+    -- let translateForm = mkTranslateForm art ts
+    -- serveForm "translate" translateForm renderTranslate $ \t ->
+        -- lucid . pageTemplate . toHtml $ show t
+
+-- mkTranslateForm :: Article Stored
+--                 -> [Translation]
+--                 -> Form Text (TTNAction ctx) Translation
+-- 
+-- -- Missing language?
+-- getTranslations :: Int -> Pg.Connection -> TTNAction ctx [Translation]
+-- 
+-- renderTranslate :: Text -> Token -> View (Html ()) -> Html ()
+-- 

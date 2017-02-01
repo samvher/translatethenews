@@ -67,6 +67,7 @@ app = prehook initHook $ do
         prehook authHook $ do
             getpost newArticleR processArticle
             getpost editArticleR editArticle
+            getpost translateArticleR translateArticle
 
 main :: IO ()
 main = do cfg <- getCfg
@@ -152,7 +153,7 @@ renderRegister tok view = pageTemplate $
 sqlGetUser :: Pg.Query
 sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
 
--- TODO: Validate email, preferably with confirmation email as well
+-- TODO: Confirmation email
 -- TODO: Check username/email separately
 getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
 getUsers creds dbConn = Pg.query dbConn sqlGetUser creds

@@ -3,13 +3,17 @@
 
 module Routing where
 
+import Types
+
 import Web.Routing.Combinators
 import Web.Spock
 
-viewArticleR, editArticleR, translateArticleR :: Path '[Int] Open
+viewArticleR, editArticleR :: Path '[Int] Open
 viewArticleR      = "articles" <//> var <//> "view"
 editArticleR      = "articles" <//> var <//> "edit"
-translateArticleR = "articles" <//> var <//> "translate"
+
+translateArticleR :: Path '[Int, Language] Open
+translateArticleR = "articles" <//> var <//> "translateto" <//> var
 
 listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"
