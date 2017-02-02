@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE QuasiQuotes #-}
 
@@ -16,7 +17,7 @@ import View
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe                       ( fromJust, listToMaybe )
-import Data.Text                        hiding ( length )
+import Data.Text                        ( Text, pack, unpack )
 import Data.Time.Clock
 import Database.PostgreSQL.Simple.SqlQQ ( sql )
 import Lucid
@@ -44,7 +45,7 @@ data Article a =
       artURL      :: Text,
       artSummary  :: Maybe Text,
       artOrigLang :: Language,
-      artBody     :: Text
+      artBody     :: [(Int, Text)]
     } deriving ( Read, Show )
 
 artLangText :: Article a -> Text
@@ -69,7 +70,7 @@ instance Pg.FromRow (Article Stored) where
                                   artURL      = url,
                                   artSummary  = summary,
                                   artOrigLang = orig_lang,
-                                  artBody     = body }
+                                  artBody     = read body } -- TODO: robustness
 
 instance Pg.ToRow (Article UnStored) where
     toRow a = Pg.toRow ( artPubDate a
@@ -78,7 +79,7 @@ instance Pg.ToRow (Article UnStored) where
                        , artURL a
                        , artSummary a
                        , artOrigLang a
-                       , artBody a)
+                       , show $ artBody a)
 
 instance Pg.ToRow (Article Stored) where
     toRow a = Pg.toRow ( artPubDate a
@@ -87,7 +88,7 @@ instance Pg.ToRow (Article Stored) where
                        , artURL a
                        , artSummary a
                        , artOrigLang a
-                       , artBody a 
+                       , show $ artBody a 
                        , artID a ) -- ^ At the end for UPDATE :/
 
 sqlAddArticle :: Pg.Query
@@ -138,13 +139,17 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
     <*> "url"      .: check "No URL supplied"    checkNE (text $ artURL    <$> a)
     <*> "summary"  .: validate wrapMaybe (text $ artSummary  =<< a)
     <*> "language" .: validate readLang (text $ artLangText <$> a)
-    <*> "body"     .: check "No body supplied"   checkNE (text $ artBody   <$> a))
+    <*> "body"     .: validateBody (text $ collectBody . artBody <$> a))
   where date _    = Success . pack . show <$> liftIO getCurrentTime
         wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
         readLang x = let x' = maybeRead $ unpack x
                       in maybe (Error "Language not valid") Success x'
+        bodyA = check "No body supplied" checkNE -- TODO: This is ugly
+        bodyB = Success . zip [0..] . T.splitOn ". "
+        validateBody = validate bodyB . bodyA
+        collectBody = T.intercalate ". " . map snd
         writeToDb d = let q = case artID =<< a of
                                 Nothing -> insertArticle
                                 Just _  -> updateArticle . markStored
@@ -198,7 +203,7 @@ data Translation =
       trLang    :: Language,
       trTitle   :: Text,
       trSummary :: Maybe Text,
-      trBody    :: Text
+      trBody    :: [(Int, Text)]
     } deriving ( Read, Show )
 
 instance Pg.FromRow Translation where
@@ -215,7 +220,7 @@ instance Pg.FromRow Translation where
                                     , trLang = lang
                                     , trTitle = title
                                     , trSummary = summary
-                                    , trBody = body }
+                                    , trBody = read body } -- TODO: robustness
 
 instance Pg.ToRow Translation where
     toRow t = Pg.toRow ( trAID t
@@ -223,7 +228,7 @@ instance Pg.ToRow Translation where
                        , trLang t
                        , trTitle t
                        , trSummary t
-                       , trBody t )
+                       , show $ trBody t )
 
 sqlAddTranslation :: Pg.Query
 sqlAddTranslation =
@@ -250,9 +255,10 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
     <*> "aid"      .: pure (fromJust $ artID a) -- TODO: make robust
     <*> "uid"      .: validateM getUser (pure ())
     <*> "lang"     .: pure lang
+    -- TODO: pre-fill with existing translations
     <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
     <*> "summary"  .: validate wrapMaybe (text Nothing)
-    <*> "body"     .: check "No body supplied"   checkNE (text Nothing) )
+    <*> "body"     .: listOf mkSentenceForm (Just $ artBody a) )
   where writeToDb t = Success <$> runQuery (insertTranslation t)
         getUser _ = do u <- sessUser <$> readSession
                        return $ case u of
@@ -261,14 +267,22 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
         wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
+        mkSentenceForm (Just (i, s)) = (\b c -> (i,b))
+                                         <$> "translation" .: text Nothing
+                                         <*> "original"    .: text (Just s)
+        mkSentenceForm Nothing = pure (0, "bla") -- TODO: figure this out
 
-renderTranslate :: Text -> Token -> View (Html ()) -> Html ()
-renderTranslate target tok view = pageTemplate $
+renderTranslate :: Article Stored -> Text -> Token -> View (Html ()) -> Html ()
+renderTranslate art target tok view = pageTemplate $
     form_ [method_ "post", action_ target]
           (do errorList "translate" view
               inputText_ "translate.title"   "Title translation"   view
               inputText_ "translate.summary" "Summary translation" view
-              inputText_ "translate.body"    "Body translation"    view
+              forM_ (listSubViews "translate.body" view) $ \v ->
+                  p_ (do label "translation" v (toHtml $ fieldInputText "original" v)
+                         br_ []
+                         inputText "translation" v
+                         errorList "translation" v)
               csrf tok
               submit "Submit translation")
 
@@ -277,7 +291,7 @@ translateArticle aID lang = do
     art <- fromJust <$> getArticleById aID -- TODO: not robust
     ts  <- getTranslations aID lang
     let translateForm = mkTranslateForm art ts lang
-        renderer = renderTranslate $ renderRoute translateArticleR aID lang
+        renderer = renderTranslate art $ renderRoute translateArticleR aID lang
     serveForm "translate" translateForm renderer $ \t ->
-        lucid . pageTemplate . toHtml $ show t
+        lucid . pageTemplate $ p_ (toHtml . show $ t)
 

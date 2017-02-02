@@ -65,8 +65,8 @@ app = prehook initHook $ do
             getpost registerR processRegistration
             getpost loginR    processLogin
         prehook authHook $ do
-            getpost newArticleR processArticle
-            getpost editArticleR editArticle
+            getpost newArticleR       processArticle
+            getpost editArticleR      editArticle -- TODO: Maybe this should be disabled?
             getpost translateArticleR translateArticle
 
 main :: IO ()
