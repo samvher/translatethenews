@@ -65,6 +65,7 @@ app = prehook initHook $ do
             getpost registerR processRegistration
             getpost loginR    processLogin
         prehook authHook $ do
+            get     logoutR   processLogout
             getpost newArticleR       processArticle
             getpost editArticleR      editArticle -- TODO: Maybe this should be disabled?
             getpost translateArticleR translateArticle
@@ -186,3 +187,7 @@ renderLogin tok view = pageTemplate $
               csrf tok
               submit "Log in")
 
+
+processLogout :: TTNAction ctx a
+processLogout = do modifySession $ \s -> s { sessUser = Nothing }
+                   lucid . pageTemplate . toHtml $ ("You have been logged out." :: Text)

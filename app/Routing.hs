@@ -19,7 +19,8 @@ listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
 
-loginR, registerR :: Path '[] Open
+loginR, logoutR, registerR :: Path '[] Open
 loginR    = "login"
+logoutR   = "logout"
 registerR = "register"
 
