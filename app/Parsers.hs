@@ -8,7 +8,6 @@ module Parsers ( parseNoPartial,
                  readBody
                ) where
 
-import Control.Applicative
 import Control.Monad
 import Data.Char
 import Data.List.Split

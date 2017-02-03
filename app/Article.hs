@@ -16,7 +16,7 @@ import View
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Maybe                       ( fromJust, listToMaybe )
+import Data.Maybe                       ( fromJust, fromMaybe, listToMaybe )
 import Data.Monoid
 import Data.Text                        ( Text, pack, unpack )
 import Data.Time.Clock
@@ -260,10 +260,8 @@ getTranslations aID lang = runQuery (\c -> Pg.query c sqlGetTranslations (aID, l
 
 mkTranslateForm :: Article Stored -> [Translation] -> Language
                 -> Form Text (TTNAction ctx) Translation
-mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( mkTranslation
-    <$> "orig_title" .: text (Just $ artTitle a)
-    <*> "orig_summ"  .: text (artSummary a)
-    <*> "id"       .: pure Nothing
+mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
+    <$> "id"       .: pure Nothing
     <*> "aid"      .: pure (fromJust $ artID a) -- TODO: make robust
     <*> "uid"      .: validateM getUser (pure ())
     <*> "lang"     .: pure lang
@@ -271,7 +269,7 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( mkTranslation
     <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
     <*> "summary"  .: validate wrapMaybe (text Nothing)
     <*> "body"     .: listOf mkParagraphForm (Just $ artBody a) )
-  where mkTranslation _ _ = Translation
+  where -- mkTranslation _ _ = Translation
         writeToDb t = Success <$> runQuery (insertTranslation t)
         getUser _ = do u <- sessUser <$> readSession
                        return $ case u of
@@ -286,15 +284,16 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( mkTranslation
                                          <*> "original"    .: text (Just s)
         mkSentenceForm Nothing = pure (0, "bla") -- TODO: figure this out
 
-renderTranslate :: Article Stored -> Text -> Token -> View (Html ()) -> Html ()
-renderTranslate art target tok view = pageTemplate $
+renderTranslate :: Article Stored -> Language -> Text -> Token -> View (Html ()) -> Html ()
+renderTranslate art lang target tok view = pageTemplate $
     form_ [method_ "post", action_ target]
           (do errorList "translate" view
+              renderGTranslate (artOrigLang art) lang (artURL art)
               h2_ $ toHtml ("Title" :: Text)
-              p_ . toHtml $ fieldInputText "translate.orig_title" view
+              p_ . toHtml $ artTitle art
               inputText_ "translate.title" "" view
               h2_ $ toHtml ("Summary" :: Text)
-              p_ . toHtml $ fieldInputText "translate.orig_summ" view
+              p_ . toHtml . fromMaybe "" $ artSummary art
               inputText_ "translate.summary" "" view
               h2_ $ toHtml ("Body" :: Text)
               forM_ (listSubViews "translate.body" view) $ \v' ->
@@ -315,18 +314,21 @@ translateArticle :: Int -> Language -> TTNAction ctx a
 translateArticle aID lang = do
     (art, ts) <- getArtTranslations aID lang
     let translateForm = mkTranslateForm art ts lang
-        renderer = renderTranslate art $ renderRoute newTranslationR aID lang
+        renderer = renderTranslate art lang $ renderRoute newTranslationR aID lang
     serveForm "translate" translateForm renderer $ \t ->
         lucid . pageTemplate $ p_ (toHtml $ show t)
 
 viewTranslation :: Int -> Language -> TTNAction ctx a
 viewTranslation aID lang = do
     (art, ts) <- getArtTranslations aID lang
-    lucid . pageTemplate $ mapM_ renderTranslation ts
+    lucid . pageTemplate $ mapM_ (renderTranslation art) ts
 
-renderTranslation :: Translation -> Html ()
-renderTranslation t = do
+renderTranslation :: Article Stored -> Translation -> Html ()
+renderTranslation a t = do
+    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
     h1_ . toHtml $ trTitle t
+    p_ . a_ [href_ (artURL a)] . toHtml $ artTitle a
+    renderGTranslate (artOrigLang a) (trLang t) (artURL a)
     maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
     renderBody $ trBody t
 
@@ -336,3 +338,16 @@ collectBody = T.intercalate "\n\n" . map (T.intercalate " " . map snd)
 renderBody :: [[(Int, Text)]] -> Html ()
 renderBody = mapM_ renderParagraph
   where renderParagraph = p_ . toHtml . T.intercalate " " . map snd
+
+langCode :: Language -> Text
+langCode English = "en"
+langCode Russian = "ru"
+
+mkGTranslateURL :: Language -> Language -> Text -> Text
+mkGTranslateURL from to url =
+    "https://translate.google.com/translate?sl=" <> langCode from <>
+      "&tl=" <> langCode to <> "&ie=UTF-8&u=" <> url
+
+renderGTranslate :: Language -> Language -> Text -> Html ()
+renderGTranslate from to url =
+    p_ . a_ [href_ (mkGTranslateURL from to url)] . toHtml $ ("GTranslate" :: Text)
