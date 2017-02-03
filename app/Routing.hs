@@ -12,8 +12,9 @@ viewArticleR, editArticleR :: Path '[Int] Open
 viewArticleR      = "articles" <//> var <//> "view"
 editArticleR      = "articles" <//> var <//> "edit"
 
-translateArticleR :: Path '[Int, Language] Open
-translateArticleR = "articles" <//> var <//> "translateto" <//> var
+newTranslationR, viewTranslationR :: Path '[Int, Language] Open
+newTranslationR = "articles" <//> var <//> "translations" <//> var <//> "new"
+viewTranslationR = "articles" <//> var <//> "translations" <//> var <//> "view"
 
 listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"

@@ -43,6 +43,7 @@ executable translatethenews
                      , path-pieces
                      , postgresql-simple
                      , reroute
+                     , split
                      , Spock
                      , Spock-digestive
                      , text

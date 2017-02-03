@@ -17,6 +17,7 @@ import View
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe                       ( fromJust, listToMaybe )
+import Data.Monoid
 import Data.Text                        ( Text, pack, unpack )
 import Data.Time.Clock
 import Database.PostgreSQL.Simple.SqlQQ ( sql )
@@ -45,7 +46,7 @@ data Article a =
       artURL      :: Text,
       artSummary  :: Maybe Text,
       artOrigLang :: Language,
-      artBody     :: [(Int, Text)]
+      artBody     :: [[(Int, Text)]]
     } deriving ( Read, Show )
 
 artLangText :: Article a -> Text
@@ -133,7 +134,7 @@ mkArticleForm :: Maybe (Article a)
               -> Form Text (TTNAction ctx) (Article Stored)
 mkArticleForm a = "article" .: validateM writeToDb ( Article
     <$> "id"       .: pure (artID =<< a)
-    <*> "pub_date" .: check "Date not valid" (testPattern dateP) (text Nothing)
+    <*> "pub_date" .: check "Date not valid" (testPattern dateP) (text $ artPubDate <$> a)
     <*> "title"    .: check "No title supplied"  checkNE (text $ artTitle  <$> a)
     <*> "author"   .: check "No author supplied" checkNE (text $ artAuthor <$> a)
     <*> "url"      .: check "No URL supplied"    checkNE (text $ artURL    <$> a)
@@ -147,9 +148,8 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
         readLang x = let x' = maybeRead $ unpack x
                       in maybe (Error "Language not valid") Success x'
         bodyA = check "No body supplied" checkNE -- TODO: This is ugly
-        bodyB = Success . zip [0..] . T.splitOn ". "
+        bodyB = Success . readBody
         validateBody = validate bodyB . bodyA
-        collectBody = T.intercalate ". " . map snd
         writeToDb d = let q = case artID =<< a of
                                 Nothing -> insertArticle
                                 Just _  -> updateArticle . markStored
@@ -166,7 +166,7 @@ renderArticleForm target tok view = pageTemplate $
               inputText_ "article.url"      "URL"      view
               inputText_ "article.summary"  "Summary"  view
               inputText_ "article.language" "Language" view
-              inputText_ "article.body"     "Body"     view
+              inputTextArea_ (Just 25) (Just 100) "article.body"     "Body"     view
               csrf tok
               submit "Submit article")
 
@@ -185,7 +185,9 @@ editArticle aID = do art <- getArticleById aID
 
 viewArticle :: Int -> TTNAction ctx a
 viewArticle aID = do art <- getArticleById aID
-                     lucid . pageTemplate . toHtml $ show art
+                     maybe (lucid . pageTemplate $ toHtml ("Not found!" :: Text))
+                           (lucid . pageTemplate . renderArticle)
+                           art
 
 sqlListArticles :: Pg.Query
 sqlListArticles = [sql| SELECT * FROM articles |]
@@ -195,6 +197,14 @@ listArticles :: TTNAction ctx a
 listArticles = do (arts :: [Article Stored]) <- runQuery' sqlListArticles
                   lucid . pageTemplate . toHtml $ show arts
 
+renderArticle :: Article Stored -> Html ()
+renderArticle a = do
+    h1_ . toHtml $ artTitle a
+    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
+    p_ . a_ [href_ (artURL a)] $ toHtml ("Original" :: Text)
+    maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
+    renderBody $ artBody a
+
 data Translation =
     Translation {
       trID      :: Maybe Int,
@@ -203,7 +213,7 @@ data Translation =
       trLang    :: Language,
       trTitle   :: Text,
       trSummary :: Maybe Text,
-      trBody    :: [(Int, Text)]
+      trBody    :: [[(Int, Text)]]
     } deriving ( Read, Show )
 
 instance Pg.FromRow Translation where
@@ -250,16 +260,19 @@ getTranslations aID lang = runQuery (\c -> Pg.query c sqlGetTranslations (aID, l
 
 mkTranslateForm :: Article Stored -> [Translation] -> Language
                 -> Form Text (TTNAction ctx) Translation
-mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
-    <$> "id"       .: pure Nothing
+mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( mkTranslation
+    <$> "orig_title" .: text (Just $ artTitle a)
+    <*> "orig_summ"  .: text (artSummary a)
+    <*> "id"       .: pure Nothing
     <*> "aid"      .: pure (fromJust $ artID a) -- TODO: make robust
     <*> "uid"      .: validateM getUser (pure ())
     <*> "lang"     .: pure lang
     -- TODO: pre-fill with existing translations
     <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
     <*> "summary"  .: validate wrapMaybe (text Nothing)
-    <*> "body"     .: listOf mkSentenceForm (Just $ artBody a) )
-  where writeToDb t = Success <$> runQuery (insertTranslation t)
+    <*> "body"     .: listOf mkParagraphForm (Just $ artBody a) )
+  where mkTranslation _ _ = Translation
+        writeToDb t = Success <$> runQuery (insertTranslation t)
         getUser _ = do u <- sessUser <$> readSession
                        return $ case u of
                          Nothing -> Error "Not logged in" -- TODO: not quite right
@@ -267,6 +280,7 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
         wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
+        mkParagraphForm ss = "paragraph" .: listOf mkSentenceForm ss
         mkSentenceForm (Just (i, s)) = (\b c -> (i,b))
                                          <$> "translation" .: text Nothing
                                          <*> "original"    .: text (Just s)
@@ -276,22 +290,49 @@ renderTranslate :: Article Stored -> Text -> Token -> View (Html ()) -> Html ()
 renderTranslate art target tok view = pageTemplate $
     form_ [method_ "post", action_ target]
           (do errorList "translate" view
-              inputText_ "translate.title"   "Title translation"   view
-              inputText_ "translate.summary" "Summary translation" view
-              forM_ (listSubViews "translate.body" view) $ \v ->
-                  p_ (do label "translation" v (toHtml $ fieldInputText "original" v)
-                         br_ []
-                         inputText "translation" v
-                         errorList "translation" v)
+              h2_ $ toHtml ("Title" :: Text)
+              p_ . toHtml $ fieldInputText "translate.orig_title" view
+              inputText_ "translate.title" "" view
+              h2_ $ toHtml ("Summary" :: Text)
+              p_ . toHtml $ fieldInputText "translate.orig_summ" view
+              inputText_ "translate.summary" "" view
+              h2_ $ toHtml ("Body" :: Text)
+              forM_ (listSubViews "translate.body" view) $ \v' ->
+                p_ $ forM_ (listSubViews "paragraph" v') $ \v ->
+                  do p_ $ label "translation" v (toHtml $ fieldInputText "original" v) 
+                     p_ $ inputTextArea (Just 2) (Just 120) "translation" v
+                     errorList "translation" v
               csrf tok
               submit "Submit translation")
 
-translateArticle :: Int -> Language -> TTNAction ctx a
-translateArticle aID lang = do
+getArtTranslations :: Int -> Language -> TTNAction ctx (Article Stored, [Translation])
+getArtTranslations aID lang = do
     art <- fromJust <$> getArticleById aID -- TODO: not robust
     ts  <- getTranslations aID lang
-    let translateForm = mkTranslateForm art ts lang
-        renderer = renderTranslate art $ renderRoute translateArticleR aID lang
-    serveForm "translate" translateForm renderer $ \t ->
-        lucid . pageTemplate $ p_ (toHtml . show $ t)
+    return (art, ts)
 
+translateArticle :: Int -> Language -> TTNAction ctx a
+translateArticle aID lang = do
+    (art, ts) <- getArtTranslations aID lang
+    let translateForm = mkTranslateForm art ts lang
+        renderer = renderTranslate art $ renderRoute newTranslationR aID lang
+    serveForm "translate" translateForm renderer $ \t ->
+        lucid . pageTemplate $ p_ (toHtml $ show t)
+
+viewTranslation :: Int -> Language -> TTNAction ctx a
+viewTranslation aID lang = do
+    (art, ts) <- getArtTranslations aID lang
+    lucid . pageTemplate $ mapM_ renderTranslation ts
+
+renderTranslation :: Translation -> Html ()
+renderTranslation t = do
+    h1_ . toHtml $ trTitle t
+    maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
+    renderBody $ trBody t
+
+collectBody :: [[(Int, Text)]] -> Text
+collectBody = T.intercalate "\n\n" . map (T.intercalate " " . map snd)
+
+renderBody :: [[(Int, Text)]] -> Html ()
+renderBody = mapM_ renderParagraph
+  where renderParagraph = p_ . toHtml . T.intercalate " " . map snd

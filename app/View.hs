@@ -39,6 +39,9 @@ viewConstr f ref lbl view = p_ (do label ref view $ toHtml lbl
 inputText_ :: Text -> Text -> View (Html ()) -> Html ()
 inputText_ = viewConstr inputText
 
+inputTextArea_ :: Maybe Int -> Maybe Int -> Text -> Text -> View (Html ()) -> Html ()
+inputTextArea_ r c = viewConstr $ inputTextArea r c
+
 inputPass_ :: Text -> Text -> View (Html ()) -> Html ()
 inputPass_ = viewConstr inputPassword
 

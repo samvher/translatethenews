@@ -60,15 +60,16 @@ app :: TTNMonad ()
 app = prehook initHook $ do
         get root $ lucid hello
         get listArticlesR listArticles
-        get viewArticleR viewArticle
         prehook guestOnlyHook $ do
             getpost registerR processRegistration
             getpost loginR    processLogin
         prehook authHook $ do
-            get     logoutR   processLogout
+            get     logoutR           processLogout
+            get     viewArticleR      viewArticle
             getpost newArticleR       processArticle
             getpost editArticleR      editArticle -- TODO: Maybe this should be disabled?
-            getpost translateArticleR translateArticle
+            getpost newTranslationR   translateArticle
+            get     viewTranslationR  viewTranslation
 
 main :: IO ()
 main = do cfg <- getCfg
