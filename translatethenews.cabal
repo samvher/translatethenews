@@ -22,13 +22,18 @@ library
 executable translatethenews
   hs-source-dirs:      app
   main-is:             Main.hs
-  other-modules:       Article
-                     , ConnInfo
-                     , Parsers
-                     , Routing
-                     , Types
-                     , Util
-                     , View
+  other-modules:       TTN.ConnInfo
+                     , TTN.Routes
+                     , TTN.Util
+                     , TTN.Controller.Article
+                     , TTN.Controller.Core
+                     , TTN.Controller.User
+                     , TTN.Model.Article
+                     , TTN.Model.Core
+                     , TTN.Model.User
+                     , TTN.View.Article
+                     , TTN.View.Core
+                     , TTN.View.User
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , translatethenews

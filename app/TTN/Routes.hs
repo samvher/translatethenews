@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
 
-module Routing where
+module TTN.Routes where
 
-import Types
+import TTN.Model.Article ( Language )
 
 import Web.Routing.Combinators
 import Web.Spock
@@ -13,7 +13,7 @@ viewArticleR      = "articles" <//> var <//> "view"
 editArticleR      = "articles" <//> var <//> "edit"
 
 newTranslationR, viewTranslationR :: Path '[Int, Language] Open
-newTranslationR = "articles" <//> var <//> "translations" <//> var <//> "new"
+newTranslationR  = "articles" <//> var <//> "translations" <//> var <//> "new"
 viewTranslationR = "articles" <//> var <//> "translations" <//> var <//> "view"
 
 listArticlesR, newArticleR :: Path '[] Open
