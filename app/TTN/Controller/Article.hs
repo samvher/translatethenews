@@ -125,9 +125,9 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
                         else Success Nothing
         mkParagraphForm ss = "paragraph" .: listOf mkSentenceForm ss
         -- | Input is a sentence from the source article, output is a form
-        --   element for a sentence in the translation. The original field is
-        --   only added so we can show the original sentence in the form, it
-        --   does not actually receive data. (It would be better to use
+        --   element for a sentence in the translation. The "original" field is
+        --   only added so we can show the original sentence as form label, it
+        --   does not actually accept data. (It would be better to use
         --   something other than 'text' to indicate this but I did not find
         --   a suitable option.)
         mkSentenceForm (Just (i, s)) = (\t _ -> (i,t))
