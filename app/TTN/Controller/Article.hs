@@ -80,8 +80,7 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
 
 -- | Serve and process new-Article form
 newArticle :: TTNAction ctx a
-newArticle = serveForm "article" articleForm renderer $ \a ->
-                      renderSimpleStr $ show a
+newArticle = serveForm "article" articleForm renderer gotoViewArticle
   where articleForm = mkArticleForm Nothing
         renderer = renderArticleForm $ S.renderRoute newArticleR
 
@@ -91,7 +90,7 @@ editArticle aID = do
     art <- S.runQuery $ getArticleById aID
     let articleForm = mkArticleForm art
         renderer    = renderArticleForm $ S.renderRoute editArticleR aID
-    serveForm "article" articleForm renderer $ \a -> renderSimpleStr $ show a
+    serveForm "article" articleForm renderer gotoViewArticle
 
 -- | Show requested article
 viewArticle :: Int -> TTNAction ctx a
@@ -154,12 +153,23 @@ newTranslation aID lang = do
     let translateForm = mkTranslateForm art ts lang
         renderer      = renderTranslate art lang $
                             S.renderRoute newTranslationR aID lang
-    serveForm "translate" translateForm renderer $ \t ->
-        renderSimpleStr $ show t
+    serveForm "translate" translateForm renderer gotoViewTranslation
 
 -- | Show translations for chosen Article in chosen Language
 viewTranslation :: Int -> Language -> TTNAction ctx a
 viewTranslation aID lang = do
     (art, ts) <- getArtTranslations aID lang
     renderPage $ mapM_ (renderTranslation art) ts
+
+
+-- * Redirects
+
+-- | Redirect to the view page for this article
+gotoViewArticle :: Article Stored -> TTNAction ctx a
+gotoViewArticle = S.redirect . S.renderRoute viewArticleR . fromJust . artID
+
+-- | Redirect to the view page for this translation
+gotoViewTranslation :: Translation -> TTNAction ctx a
+gotoViewTranslation t =
+    S.redirect $ S.renderRoute viewTranslationR (trAID t) (trLang t)
 

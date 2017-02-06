@@ -11,6 +11,7 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.Controller.User where
 
+import TTN.Routes
 import TTN.Util                         ( checkNE
                                         , emailP
                                         , testPattern )
@@ -67,11 +68,10 @@ encodePass = pack . show . hash . encodeUtf8
 -- | Process and serve registration form, add a successful registration to
 --   the database.
 processRegistration :: TTNAction ctx a
-processRegistration = serveForm "register"
-                                registerForm
-                                renderRegisterForm
-                                $ \u -> do S.runQuery $ insertUser u
-                                           renderSimpleStr $ show u
+processRegistration =
+    serveForm "register" registerForm renderRegisterForm $ \u ->
+        do S.runQuery $ insertUser u
+           renderSimpleStr $ "Success: " ++ show u
 
 -- | Registration form
 registerForm :: Form Text (TTNAction ctx) (Text, Text, Text)
@@ -90,7 +90,7 @@ registerForm = "register" .: checkM nonUniqueMsg uniqueness ( prepUser
 processLogin :: TTNAction ctx a
 processLogin = serveForm "login" loginForm renderLoginForm $ \u ->
                  do S.modifySession ( \s -> s { sessUser = Just u } )
-                    renderSimpleStr $ show u
+                    S.redirect $ S.renderRoute listArticlesR
 
 -- | Login form
 loginForm :: Form Text (TTNAction ctx) User

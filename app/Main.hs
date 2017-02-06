@@ -21,8 +21,8 @@ import Web.Spock
 -- | Connects paths, requests, handlers, authentication requirements
 app :: TTNMonad ()
 app = prehook initHook $ do
-        get root hello
         get listArticlesR listArticles
+        get root . redirect $ renderRoute loginR
         prehook guestOnlyHook $ do
             getpost registerR processRegistration
             getpost loginR    processLogin
