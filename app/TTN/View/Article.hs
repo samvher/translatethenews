@@ -14,7 +14,7 @@ import TTN.View.Core
 import Control.Monad                    ( forM_ )
 import Data.Maybe                       ( fromMaybe )
 import Data.Monoid                      ( (<>) )
-import Data.Text                        ( Text )
+import Data.Text                        ( Text, pack )
 import Lucid
 import Text.Digestive.Form
 import Text.Digestive.View
@@ -50,6 +50,7 @@ renderArticle a = do
     p_ . a_ [href_ (artURL a)] $ toHtml ("Original" :: Text)
     maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
     renderBody $ artBody a
+    p_ . toHtml $ "By user " <> (pack . show $ artUID a)
 
 -- * Translation views
 

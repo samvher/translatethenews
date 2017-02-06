@@ -74,18 +74,14 @@ processRegistration = serveForm "register"
                                            renderSimpleStr $ show u
 
 -- | Registration form
-registerForm :: Form Text (TTNAction ctx) User
-registerForm = "register" .: checkM nonUniqueMsg uniqueness (mkUser
-    <$> "uid"      .: pure 0
-    <*> "username" .: check "No username supplied" checkNE (text Nothing)
+registerForm :: Form Text (TTNAction ctx) (Text, Text, Text)
+registerForm = "register" .: checkM nonUniqueMsg uniqueness ( prepUser
+    <$> "username" .: check "No username supplied" checkNE (text Nothing)
     <*> "email"    .: check "Email not valid" (testPattern emailP) (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
   where nonUniqueMsg = "Username or email already registered"
-        uniqueness u = null <$> S.runQuery (testUniqueness (uName u, uEmail u))
-        mkUser i u e p = User { uID = i
-                              , uName = u
-                              , uEmail = e
-                              , uPassHash = encodePass p }
+        uniqueness (n, e, _) = S.runQuery $ isUnique (n, e)
+        prepUser n e p = (n, e, encodePass p)
 
 -- * Login/logout
 
@@ -111,4 +107,12 @@ loginForm = "login" .: validateM findUser (readCreds
 processLogout :: TTNAction ctx a
 processLogout = do S.modifySession $ \s -> s { sessUser = Nothing }
                    renderSimpleStr "You have been logged out."
+
+-- * Get current user
+
+getLoggedInUID :: () -> TTNAction ctx (Result Text Int)
+getLoggedInUID _ = do u <- sessUser <$> S.readSession
+                      return $ case u of -- TODO: this is not quite right
+                                 Nothing -> Error "Not logged in"
+                                 Just u' -> Success $ uID u'
 

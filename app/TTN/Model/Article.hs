@@ -58,14 +58,15 @@ data UnStored = UnStored
 
 data Article a =
     Article {
-      artID       :: Maybe Int,
-      artPubDate  :: Text,
-      artTitle    :: Text,
-      artAuthor   :: Text,
-      artURL      :: Text,
-      artSummary  :: Maybe Text,
-      artOrigLang :: Language,
-      artBody     :: [[(Int, Text)]]
+      artID      :: Maybe Int,
+      artUID     :: Int,
+      artPubDate :: Text,
+      artTitle   :: Text,
+      artAuthor  :: Text,
+      artURL     :: Text,
+      artSummary :: Maybe Text,
+      artOrigLang:: Language,
+      artBody    :: [[(Int, Text)]]
     } deriving ( Read, Show )
 
 artLangAsText :: Article a -> Text
@@ -76,7 +77,8 @@ markStored :: Article a -> Article Stored
 markStored Article {..} = Article {..}
 
 instance Pg.FromRow (Article Stored) where
-    fromRow = do id          <- Pg.field
+    fromRow = do aid         <- Pg.field
+                 uid         <- Pg.field
                  pub_date    <- Pg.field
                  title       <- Pg.field
                  author      <- Pg.field
@@ -85,7 +87,8 @@ instance Pg.FromRow (Article Stored) where
                  orig_lang   <- Pg.field
                  body        <- Pg.field
                  return Article {
-                          artID       = id,
+                          artID       = aid,
+                          artUID      = uid,
                           artPubDate  = pub_date,
                           artTitle    = title,
                           artAuthor   = author,
@@ -96,7 +99,8 @@ instance Pg.FromRow (Article Stored) where
 
 -- | This instance is for inserts, when the DB chooses the article ID.
 instance Pg.ToRow (Article UnStored) where
-    toRow a = Pg.toRow ( artPubDate a
+    toRow a = Pg.toRow ( artUID a
+                       , artPubDate a
                        , artTitle a
                        , artAuthor a
                        , artURL a
@@ -107,7 +111,8 @@ instance Pg.ToRow (Article UnStored) where
 -- | This instance is used for things like updates, when we have an article
 --   ID in the database.
 instance Pg.ToRow (Article Stored) where
-    toRow a = Pg.toRow ( artPubDate a
+    toRow a = Pg.toRow ( artUID a
+                       , artPubDate a
                        , artTitle a
                        , artAuthor a
                        , artURL a
@@ -119,8 +124,9 @@ instance Pg.ToRow (Article Stored) where
 sqlAddArticle :: Pg.Query
 sqlAddArticle =
     [sql| INSERT INTO articles
-                        (pub_date, title, author, url, summary, orig_lang, body)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (contributor_id, pub_date, title, author,
+                         url, summary, orig_lang, body)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                  RETURNING * |]
 
 insertArticle :: Article UnStored
@@ -131,7 +137,8 @@ insertArticle art dbConn = do [a] <- Pg.query dbConn sqlAddArticle art
 
 sqlEditArticle :: Pg.Query
 sqlEditArticle =
-    [sql| UPDATE articles SET pub_date = ?
+    [sql| UPDATE articles SET contributor_id = ?
+                            , pub_date = ?
                             , title = ?
                             , author = ?
                             , url = ?

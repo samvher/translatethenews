@@ -5,10 +5,12 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 -}
 
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module TTN.Model.User where
 
 import Control.Monad                    ( void )
+import Data.Maybe                       ( listToMaybe )
 import Data.Text                        ( Text )
 import Database.PostgreSQL.Simple.SqlQQ ( sql )
 
@@ -22,20 +24,14 @@ data User =
     User {
       uID       :: Int,
       uName     :: Text,
-      uEmail    :: Text,
-      uPassHash :: Text -- ^ Generated with encodePass (in TTN.Controller.User)
+      uEmail    :: Text
     } deriving ( Read, Show )
 
 instance Pg.FromRow User where
     fromRow = do userId          <- Pg.field
                  name            <- Pg.field
                  email           <- Pg.field
-                 passHash        <- Pg.field
-                 return (User userId name email passHash)
-
--- | User ID is determined by the DB, we don't supply it
-instance Pg.ToRow User where
-    toRow (User _ name email passHash) = Pg.toRow (name, email, passHash)
+                 return (User userId name email)
 
 -- | For type-safe authentication
 data IsGuest = IsGuest
@@ -44,20 +40,32 @@ sqlAddUser :: Pg.Query
 sqlAddUser =
     [sql| INSERT INTO users (name, email, password) VALUES (?, ?, ?) |]
 
-insertUser :: User -> Pg.Connection -> IO ()
+insertUser :: (Text, Text, Text) -> Pg.Connection -> IO ()
 insertUser user dbConn = void $ Pg.execute dbConn sqlAddUser user
 
 -- TODO: Check username/email separately
 sqlTestUniqueness :: Pg.Query
-sqlTestUniqueness = [sql| SELECT * FROM users WHERE name = ? OR email = ? |]
+sqlTestUniqueness = [sql| SELECT COUNT(*)
+                          FROM users WHERE name = ? OR email = ? |]
 
 -- | Check that given name or emailaddress has not been used before
-testUniqueness :: (Text, Text) -> Pg.Connection -> IO [User]
-testUniqueness vals dbConn = Pg.query dbConn sqlTestUniqueness vals
+isUnique :: (Text, Text) -> Pg.Connection -> IO Bool -- TODO: get rid of head
+isUnique vals dbConn = do
+    (counts :: [Pg.Only Int]) <- Pg.query dbConn sqlTestUniqueness vals
+    return . (== 0) . Pg.fromOnly $ head counts
 
 sqlGetUser :: Pg.Query
-sqlGetUser = [sql| SELECT * FROM users WHERE name = ? AND password = ? |]
+sqlGetUser = [sql| SELECT id, name, email
+                   FROM users WHERE name = ? AND password = ? |]
 
 getUsers :: (Text, Text) -> Pg.Connection -> IO [User]
 getUsers creds dbConn = Pg.query dbConn sqlGetUser creds
+
+sqlGetUserById :: Pg.Query
+sqlGetUserById = [sql| SELECT id, name, email
+                       FROM users WHERE id = ? |]
+
+getUserById :: Int -> Pg.Connection -> IO (Maybe User)
+getUserById uID dbConn =
+    listToMaybe <$> Pg.query dbConn sqlGetUserById (Pg.Only uID)
 

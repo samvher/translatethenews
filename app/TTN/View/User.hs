@@ -8,6 +8,7 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.View.User where
 
+import TTN.Model.User
 import TTN.View.Core
 
 import Lucid
@@ -37,3 +38,10 @@ renderLoginForm tok view = pageTemplate $
               inputPass_ "login.password" "Password" view
               csrf tok
               submit "Log in")
+
+-- * User profile
+
+-- TODO: Flesh out
+renderProfileBadge :: User -> Html ()
+renderProfileBadge u = em_ . toHtml $ uName u
+

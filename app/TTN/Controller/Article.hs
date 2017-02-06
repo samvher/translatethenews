@@ -16,6 +16,7 @@ import TTN.Util                         ( checkNE
 import TTN.Routes
 
 import TTN.Controller.Core
+import TTN.Controller.User
 import TTN.Model.Article
 import TTN.Model.Core
 import TTN.Model.User
@@ -41,6 +42,8 @@ mkArticleForm :: Maybe (Article a)
               -> Form Text (TTNAction ctx) (Article Stored)
 mkArticleForm a = "article" .: validateM writeToDb ( Article
     <$> "id"       .: pure (artID =<< a)
+    -- TODO: currently everyone has edit rights and UID gets changed on edit
+    <*> "uid"      .: validateM getLoggedInUID (pure ())
     <*> "pub_date" .: check "Date not valid"
                             (testPattern dateP)
                             (text $ artPubDate <$> a)
@@ -112,7 +115,7 @@ mkTranslateForm :: Article Stored -> [Translation] -> Language
 mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
     <$> "id"       .: pure Nothing
     <*> "aid"      .: validate artHasID (pure a)
-    <*> "uid"      .: validateM getUser (pure ())
+    <*> "uid"      .: validateM getLoggedInUID (pure ())
     <*> "lang"     .: pure lang
     -- TODO: pre-fill with existing translations
     <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
@@ -122,10 +125,6 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
         artHasID  a = case artID a of
                         Just aID -> Success aID
                         _        -> Error "Supplied article has no ID"
-        getUser   _ = do u <- sessUser <$> S.readSession
-                         return $ case u of
-                           Nothing -> Error "Not logged in" -- TODO: not quite right
-                           Just u' -> Success $ uID u'
         wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
