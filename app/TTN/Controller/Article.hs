@@ -64,6 +64,12 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
         validBody b = if not $ T.null b
                         then Success $ textToBody b
                         else Error "No body supplied"
+        -- | Here something subtle is going on. We're using Stored/UnStored
+        --   on Article as phantom types to affect the way Pg.ToRow kicks
+        --   in (see TTN.Model.Article). If it's a new article (no ID
+        --   assigned, UnStored) it gets INSERTed into the database. If it's an
+        --   existing article (which has an ID, Stored) it gets UPDATEd in
+        --   the database.
         writeToDb d = let q = case artID =<< a of
                                 Nothing -> insertArticle
                                 Just _  -> updateArticle . markStored
