@@ -1,3 +1,9 @@
+{-|
+Module      : TTN.Model.Article
+Description : Interface with the PSQL database for Article-related types.
+Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
+-}
+
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -20,7 +26,7 @@ import qualified Database.PostgreSQL.Simple.ToRow as Pg
 import qualified Database.PostgreSQL.Simple.FromField as Pg
 import qualified Database.PostgreSQL.Simple.ToField as Pg
 
--- Language
+-- * Language
 
 data Language = English
               | Russian
@@ -38,16 +44,17 @@ instance PathPiece Language where
     fromPathPiece = maybeRead . unpack
     toPathPiece   = pack . show
 
+-- | This is for use in for example Google Translate URLs
 langCode :: Language -> Text
 langCode English = "en"
 langCode Russian = "ru"
 
--- Helper types (as phantoms)
+-- * Helper types (used as phantoms)
 
 data Stored = Stored
 data UnStored = UnStored
 
--- Article
+-- * Article
 
 data Article a =
     Article {
@@ -64,8 +71,9 @@ data Article a =
 artLangAsText :: Article a -> Text
 artLangAsText = pack . show . artOrigLang
 
+-- | Syntax is from RecordWildCards extension
 markStored :: Article a -> Article Stored
-markStored Article {..} = Article {..} -- Using RecordWildCards
+markStored Article {..} = Article {..}
 
 instance Pg.FromRow (Article Stored) where
     fromRow = do id          <- Pg.field
@@ -86,6 +94,7 @@ instance Pg.FromRow (Article Stored) where
                           artOrigLang = orig_lang,
                           artBody     = fromMaybe [] $ maybeRead body }
 
+-- | This instance is for inserts, when the DB chooses the article ID.
 instance Pg.ToRow (Article UnStored) where
     toRow a = Pg.toRow ( artPubDate a
                        , artTitle a
@@ -95,6 +104,8 @@ instance Pg.ToRow (Article UnStored) where
                        , artOrigLang a
                        , show $ artBody a)
 
+-- | This instance is used for things like updates, when we have an article
+--   ID in the database.
 instance Pg.ToRow (Article Stored) where
     toRow a = Pg.toRow ( artPubDate a
                        , artTitle a
@@ -103,7 +114,7 @@ instance Pg.ToRow (Article Stored) where
                        , artSummary a
                        , artOrigLang a
                        , show $ artBody a 
-                       , artID a ) -- ^ At the end for UPDATE :/
+                       , artID a ) -- ^ At the end for WHERE clause :/
 
 sqlAddArticle :: Pg.Query
 sqlAddArticle =
@@ -148,7 +159,7 @@ sqlListArticles = [sql| SELECT * FROM articles |]
 getArticleList :: Pg.Connection -> IO [Article Stored]
 getArticleList dbConn = Pg.query dbConn sqlListArticles ()
 
--- Translation
+-- * Translation
 
 data Translation =
     Translation {
@@ -177,6 +188,8 @@ instance Pg.FromRow Translation where
                                     , trSummary = summary
                                     , trBody = fromMaybe [] $ maybeRead body }
 
+-- | With translations we so far assume they're not edited - instead we
+--   just add new translations add new translations.
 instance Pg.ToRow Translation where
     toRow t = Pg.toRow ( trAID t
                        , trUID t
@@ -203,18 +216,20 @@ sqlGetTranslations = [sql| SELECT * FROM translations
 getTranslations :: Int -> Language -> Pg.Connection -> IO [Translation]
 getTranslations aID lang dbConn = Pg.query dbConn sqlGetTranslations (aID, lang)
 
--- Dealing with the body of these types
+-- * Body transformations
 
-bodyAsParagraphs :: [[(Int, Text)]] -> [Text]
-bodyAsParagraphs = map (T.intercalate " " . map snd)
-
-bodyAsText :: [[(Int, Text)]] -> Text
-bodyAsText = T.intercalate "\n\n" . bodyAsParagraphs
-
+-- | The database stores <show>ed versions of line-number/sentence pairs,
+--   grouped per paragraph.
 textToBody :: Text -> [[(Int, Text)]]
 textToBody = innerZip [0..] . body
   where body = map sentences . paragraphs
         sentences = map T.strip . putBackPeriods . T.splitOn ". "
         putBackPeriods xs = map (`T.append` ".") (init xs) ++ [last xs]
         paragraphs = filter (not . T.null) . map T.strip . T.lines
+
+bodyAsParagraphs :: [[(Int, Text)]] -> [Text]
+bodyAsParagraphs = map (T.intercalate " " . map snd)
+
+bodyAsText :: [[(Int, Text)]] -> Text
+bodyAsText = T.intercalate "\n\n" . bodyAsParagraphs
 

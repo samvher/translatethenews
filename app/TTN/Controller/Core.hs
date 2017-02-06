@@ -1,3 +1,10 @@
+{-|
+Module      : TTN.Controller.Core
+Description : Diverse code for working in Spock which is not particularly
+              related to Articles or authentication.
+Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
+-}
+
 {-# LANGUAGE DataKinds #-}
 
 module TTN.Controller.Core where
@@ -15,23 +22,32 @@ import qualified Database.PostgreSQL.Simple as Pg
 import qualified Web.Spock as S
 import qualified Web.Spock.Config as S
 
+-- | Spock DB connection pool
 dbConn :: Pg.ConnectInfo -> S.PoolOrConn Pg.Connection
 dbConn connInfo = S.PCConn (S.ConnBuilder (Pg.connect connInfo)
                                           Pg.close
                                           (S.PoolCfg 5 5 60))
 
+-- | Spock configuration
 getCfg :: Pg.ConnectInfo -> IO TTNCfg
 getCfg connInfo = do
     cfg' <- S.defaultSpockCfg defSession (dbConn connInfo) defState
     return cfg' { S.spc_csrfProtection = True }
 
+-- | Serve access denied page
 noAccess :: String -> TTNAction ctx a
 noAccess msg = do S.setStatus status403
                   renderSimpleStr msg
 
+-- | For working with type-safe authentication
 initHook :: TTNAction () (HVect '[])
 initHook = return HNil
 
+-- | Takes an internal label for a form, digestive-functors form
+--   description, a renderer for turning the view into HTML (see the
+--   FormRenderer type alias in TTN.View.Core), and an action to perform on
+--   the output of the form after successfully processing it. Takes out
+--   some of the pain of working with CSRF tokens.
 serveForm :: Text
           -> Form Text (TTNAction ctx) a
           -> FormRenderer

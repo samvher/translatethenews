@@ -1,3 +1,9 @@
+{-|
+Module      : TTN.Model.User
+Description : Interface with the PSQL database for User-related types.
+Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
+-}
+
 {-# LANGUAGE QuasiQuotes #-}
 
 module TTN.Model.User where
@@ -10,14 +16,14 @@ import qualified Database.PostgreSQL.Simple as Pg
 import qualified Database.PostgreSQL.Simple.FromRow as Pg
 import qualified Database.PostgreSQL.Simple.ToRow as Pg
 
--- User constructor
+-- * User
 
 data User =
     User {
       uID       :: Int,
       uName     :: Text,
       uEmail    :: Text,
-      uPassHash :: Text
+      uPassHash :: Text -- ^ Generated with encodePass (in TTN.Controller.User)
     } deriving ( Read, Show )
 
 instance Pg.FromRow User where
@@ -27,13 +33,12 @@ instance Pg.FromRow User where
                  passHash        <- Pg.field
                  return (User userId name email passHash)
 
--- User ID is determined by the DB
+-- | User ID is determined by the DB, we don't supply it
 instance Pg.ToRow User where
     toRow (User _ name email passHash) = Pg.toRow (name, email, passHash)
 
+-- | For type-safe authentication
 data IsGuest = IsGuest
-
--- User DB interaction
 
 sqlAddUser :: Pg.Query
 sqlAddUser =
@@ -46,6 +51,7 @@ insertUser user dbConn = void $ Pg.execute dbConn sqlAddUser user
 sqlTestUniqueness :: Pg.Query
 sqlTestUniqueness = [sql| SELECT * FROM users WHERE name = ? OR email = ? |]
 
+-- | Check that given name or emailaddress has not been used before
 testUniqueness :: (Text, Text) -> Pg.Connection -> IO [User]
 testUniqueness vals dbConn = Pg.query dbConn sqlTestUniqueness vals
 

@@ -1,3 +1,9 @@
+{-|
+Module      : TTN.View.User
+Description : Templating code related to the user subsystem.
+Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
+-}
+
 {-# LANGUAGE OverloadedStrings #-}
 
 module TTN.View.User where
@@ -9,10 +15,10 @@ import Text.Digestive.View
 
 import qualified Text.Digestive.Lucid.Html5 as DL
 
--- Registration
+-- * Registration
 
-renderRegister :: Token -> View (Html ()) -> Html ()
-renderRegister tok view = pageTemplate $
+renderRegisterForm :: Token -> View (Html ()) -> Html ()
+renderRegisterForm tok view = pageTemplate $
     form_ [method_ "post", action_ "/register"]
           (do DL.errorList "register" view
               inputText_ "register.username" "Username" view
@@ -21,10 +27,10 @@ renderRegister tok view = pageTemplate $
               csrf tok
               submit "Register")
 
--- Login
+-- * Login
 
-renderLogin :: Token -> View (Html ()) -> Html ()
-renderLogin tok view = pageTemplate $
+renderLoginForm :: Token -> View (Html ()) -> Html ()
+renderLoginForm tok view = pageTemplate $
     form_ [method_ "post", action_ "/login"]
           (do DL.errorList "login" view
               inputText_ "login.username" "Username" view

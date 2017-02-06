@@ -1,3 +1,9 @@
+{-|
+Module      : TTN.View.Core
+Description : Site-wide code for templating.
+Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
+-}
+
 {-# LANGUAGE OverloadedStrings #-}
 
 module TTN.View.Core where
@@ -12,13 +18,13 @@ import Text.Digestive.View
 import qualified Text.Digestive.Lucid.Html5 as DL
 import qualified Web.Spock as S
 
--- Some useful type aliases
+-- * View type aliases
 
 type Token = Text
 
 type FormRenderer = Token -> View (Html ()) -> Html ()
 
--- Some higher level layout functions
+-- * Higher level layout functions
 
 lucid :: Html () -> TTNAction ctx a
 lucid = S.html . toStrict . renderText
@@ -39,8 +45,9 @@ renderSimpleStr msg = renderPage $ toHtml msg
 renderSimpleForm :: FormRenderer -> Token -> View Text -> TTNAction ctx a
 renderSimpleForm renderer tok view = lucid . renderer tok $ fmap toHtml view
 
--- Some functions for form views
+-- * Functions for generating form views
 
+-- | Shorter code for generating simple form fields
 constructView :: (Text -> View (Html ()) -> Html ())
               -> Text
               -> Text
@@ -62,6 +69,7 @@ inputPass_ = constructView DL.inputPassword
 submit :: Text -> Html ()
 submit value = p_ $ input_ [type_ "submit", value_ value]
 
+-- TODO: This name is the default, maybe it can be extracted from conf
 csrf :: Token -> Html ()
 csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 
