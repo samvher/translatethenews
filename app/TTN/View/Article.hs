@@ -49,11 +49,14 @@ renderArticle :: Article Stored -> Html ()
 renderArticle a = do
     h1_ . toHtml $ artTitle a
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
-    p_ . a_ [href_ $ artURL a] $ toHtml ("Original" :: Text)
-    p_ . a_ [href_ $ editArticlePath a] $ toHtml ("Edit" :: Text)
+    p_ . a_ [href_ $ artURL a] $ h "Original"
+    p_ . a_ [href_ $ editArticlePath a] $ h "Edit"
     maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
     renderBody $ artBody a
     p_ . toHtml $ "By user " <> (pack . show $ artUID a)
+    mapM_ translateLink allLanguages
+  where translateLink :: Language -> Html ()
+        translateLink l = p_ . a_ [href_ $ newTranslationPath a l] $ toHtml l
 
 -- | For use in listings
 renderListArticle :: Article Stored -> Html ()

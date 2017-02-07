@@ -17,6 +17,7 @@ import TTN.Util                         ( innerZip, maybeRead )
 import Data.Maybe                       ( fromMaybe, listToMaybe )
 import Data.Text                        ( Text, pack, unpack )
 import Database.PostgreSQL.Simple.SqlQQ ( sql )
+import Lucid                            ( ToHtml(..) )
 import Web.PathPieces
 
 import qualified Data.Text as T
@@ -34,6 +35,12 @@ data Language = English
               | Indonesian
                 deriving ( Read, Show )
 
+allLanguages :: [Language]
+allLanguages = [ English
+               , Russian
+               , Turkish
+               , Indonesian ]
+
 instance Pg.FromField Language where
     fromField f dat = read . unpack <$> Pg.fromField f dat
 
@@ -43,6 +50,10 @@ instance Pg.ToField Language where
 instance PathPiece Language where
     fromPathPiece = maybeRead . unpack
     toPathPiece   = pack . show
+
+instance ToHtml Language where
+    toHtml    = toHtml . show
+    toHtmlRaw = toHtml
 
 -- | This is for use in for example Google Translate URLs
 langCode :: Language -> Text
@@ -71,6 +82,10 @@ data Article a =
 
 artLangAsText :: Article a -> Text
 artLangAsText = pack . show . artOrigLang
+
+-- | We are falling back to 0 but this should never happen
+artID' :: Article Stored -> Int
+artID' = fromMaybe 0 . artID
 
 -- | Syntax is from RecordWildCards extension
 markStored :: Article a -> Article Stored

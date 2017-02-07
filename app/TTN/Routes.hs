@@ -25,17 +25,17 @@ viewArticleR      = "articles" <//> var <//> "view"
 editArticleR      = "articles" <//> var <//> "edit"
 
 viewArticlePath, editArticlePath :: Article Stored -> Text
-viewArticlePath = renderRoute viewArticleR . fromMaybe 0 . artID
-editArticlePath = renderRoute editArticleR . fromMaybe 0 . artID
+viewArticlePath = renderRoute viewArticleR . artID'
+editArticlePath = renderRoute editArticleR . artID'
 
 -- | Arguments are first article id, then language
 newTranslationR, viewTranslationR :: Path '[Int, Language] Open
 newTranslationR  = "articles" <//> var <//> "translations" <//> var <//> "new"
 viewTranslationR = "articles" <//> var <//> "translations" <//> var <//> "view"
 
-newTranslationPath, viewTranslationPath :: Translation -> Text
-newTranslationPath  t = renderRoute newTranslationR  (trAID t) (trLang t)
-viewTranslationPath t = renderRoute viewTranslationR (trAID t) (trLang t)
+newTranslationPath, viewTranslationPath :: Article Stored -> Language -> Text
+newTranslationPath  a = renderRoute newTranslationR  (artID' a)
+viewTranslationPath a = renderRoute viewTranslationR (artID' a)
 
 listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"
