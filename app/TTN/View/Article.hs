@@ -8,6 +8,8 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.View.Article where
 
+import TTN.Routes
+
 import TTN.Model.Article
 import TTN.View.Core
 
@@ -47,10 +49,22 @@ renderArticle :: Article Stored -> Html ()
 renderArticle a = do
     h1_ . toHtml $ artTitle a
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
-    p_ . a_ [href_ (artURL a)] $ toHtml ("Original" :: Text)
+    p_ . a_ [href_ $ artURL a] $ toHtml ("Original" :: Text)
+    p_ . a_ [href_ $ editArticlePath a] $ toHtml ("Edit" :: Text)
     maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
     renderBody $ artBody a
     p_ . toHtml $ "By user " <> (pack . show $ artUID a)
+
+-- | For use in listings
+renderListArticle :: Article Stored -> Html ()
+renderListArticle a =
+    div_ (do h3_ . a_ [href_ (viewArticlePath a)] . toHtml $ artTitle a
+             p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a))
+
+renderArticleList :: [Article Stored] -> Html ()
+renderArticleList as = do
+    p_ . a_ [href_ newArticlePath] $ toHtml ("New article" :: Text)
+    mapM_ renderListArticle as
 
 -- * Translation views
 

@@ -45,15 +45,15 @@ authHook :: TTNAction (HVect xs) (HVect (User ': xs))
 authHook = do oldCtx <- S.getContext
               u      <- sessUser <$> S.readSession
               case u of
-                Nothing   -> noAccess "Sorry, no access! Log in first."
+                Nothing   -> noAccess mustLogin
                 Just user -> return (user :&: oldCtx)
 
 -- | Pages behind this hook require that the visitor is not logged in
 guestOnlyHook :: TTNAction (HVect xs) (HVect (IsGuest ': xs))
-guestOnlyHook = do oldCtx     <- S.getContext
-                   loggedIn   <- visitorLoggedIn
-                   if loggedIn
-                     then noAccess "You're already logged in!"
+guestOnlyHook = do oldCtx      <- S.getContext
+                   logInStatus <- visitorLoggedIn
+                   if logInStatus
+                     then noAccess loggedIn
                      else return (IsGuest :&: oldCtx)
 
 -- * Password hashing

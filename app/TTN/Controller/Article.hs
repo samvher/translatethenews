@@ -101,8 +101,7 @@ viewArticle aID = do art <- runQuerySafe $ getArticleById aID
 
 -- | Article listing
 listArticles :: TTNAction ctx a
-listArticles = do as <- runQuerySafe getArticleList
-                  renderSimpleStr $ show as
+listArticles = renderPage . renderArticleList =<< runQuerySafe getArticleList
 
 -- * Translation
 

@@ -16,6 +16,7 @@ import TTN.View.Core
 import Control.Exception                ( SomeException, try )
 import Data.HVect                       ( HVect(..) )
 import Data.Text                        ( Text )
+import Lucid                            ( Html )
 import Network.HTTP.Types.Status        ( status403 )
 import Text.Digestive.Form              ( Form )
 import Web.Spock.Digestive              ( runForm )
@@ -37,9 +38,9 @@ getCfg connInfo = do
     return cfg' { S.spc_csrfProtection = True }
 
 -- | Serve access denied page
-noAccess :: String -> TTNAction ctx a
+noAccess :: Html () -> TTNAction ctx a
 noAccess msg = do S.setStatus status403
-                  renderSimpleStr msg
+                  renderPage msg
 
 -- | For working with type-safe authentication
 initHook :: TTNAction () (HVect '[])

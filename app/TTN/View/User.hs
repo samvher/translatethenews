@@ -8,6 +8,8 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.View.User where
 
+import TTN.Routes
+
 import TTN.Model.User
 import TTN.View.Core
 
@@ -44,4 +46,15 @@ renderLoginForm tok view = pageTemplate $
 -- TODO: Flesh out
 renderProfileBadge :: User -> Html ()
 renderProfileBadge u = em_ . toHtml $ uName u
+
+-- * Authentication pages
+
+mustLogin :: Html ()
+mustLogin = p_ (do h "Sorry, no access! "
+                   a_ [href_ loginPath] $ h "Log in first.")
+
+loggedIn :: Html ()
+loggedIn = p_ (do h "You're already logged in!"
+                  a_ [href_ logoutPath] $ h "Log out"
+                  h " if you want to go here.")
 
