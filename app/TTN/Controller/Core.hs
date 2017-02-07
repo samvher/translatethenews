@@ -6,12 +6,14 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 -}
 
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module TTN.Controller.Core where
 
 import TTN.Model.Core
 import TTN.View.Core
 
+import Control.Exception                ( SomeException, try )
 import Data.HVect                       ( HVect(..) )
 import Data.Text                        ( Text )
 import Network.HTTP.Types.Status        ( status403 )
@@ -60,5 +62,17 @@ serveForm label form renderer successAction = do
       Nothing -> renderSimpleForm renderer tok view
       Just x  -> successAction x
 
+-- | Safely run a query (redirecting to an error page in case of exceptions).
+--   We have to use forall a ctx to play nice with ScopedTypeVariables,
+--   and the type declaration of q'.
+runQuerySafe :: forall a ctx. (Pg.Connection -> IO a) -> TTNAction ctx a
+runQuerySafe q = do result <- S.runQuery q'
+                    case result of
+                      Left  _   -> renderSimpleStr errorStr
+                      Right res -> return res
+  where q' conn = try (q conn) :: IO (Either SomeException a)
+        errorStr = "Sorry, a database error occurred."
+
+-- | Hello world page
 hello :: TTNAction ctx a
 hello = renderSimpleStr "Привет, мир!"

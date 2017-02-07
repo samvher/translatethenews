@@ -70,7 +70,7 @@ encodePass = pack . show . hash . encodeUtf8
 processRegistration :: TTNAction ctx a
 processRegistration =
     serveForm "register" registerForm renderRegisterForm $ \u ->
-        do S.runQuery $ insertUser u
+        do runQuerySafe $ insertUser u
            renderSimpleStr $ "Success: " ++ show u
 
 -- | Registration form
@@ -80,7 +80,7 @@ registerForm = "register" .: checkM nonUniqueMsg uniqueness ( prepUser
     <*> "email"    .: check "Email not valid" (testPattern emailP) (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
   where nonUniqueMsg = "Username or email already registered"
-        uniqueness (n, e, _) = S.runQuery $ isUnique (n, e)
+        uniqueness (n, e, _) = runQuerySafe $ isUnique (n, e)
         prepUser n e p = (n, e, encodePass p)
 
 -- * Login/logout
@@ -101,7 +101,7 @@ loginForm = "login" .: validateM findUser (readCreds
         findUser creds = let f  [] = Error "Invalid credentials"
                              f [u] = Success u
                              f  _  = Error "Multiple users, contact an admin"
-                          in f <$> S.runQuery (getUsers creds)
+                          in f <$> runQuerySafe (getUsers creds)
 
 -- | Remove authenticated status from the session
 processLogout :: TTNAction ctx a

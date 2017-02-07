@@ -76,7 +76,7 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
         writeToDb d = let q = case artID =<< a of
                                 Nothing -> insertArticle
                                 Just _  -> updateArticle . markStored
-                       in Success <$> S.runQuery (q d)
+                       in Success <$> runQuerySafe (q d)
 
 -- | Serve and process new-Article form
 newArticle :: TTNAction ctx a
@@ -87,21 +87,21 @@ newArticle = serveForm "article" articleForm renderer gotoViewArticle
 -- | Serve and process edit-Article form
 editArticle :: Int -> TTNAction ctx a
 editArticle aID = do
-    art <- S.runQuery $ getArticleById aID
+    art <- runQuerySafe $ getArticleById aID
     let articleForm = mkArticleForm art
         renderer    = renderArticleForm $ S.renderRoute editArticleR aID
     serveForm "article" articleForm renderer gotoViewArticle
 
 -- | Show requested article
 viewArticle :: Int -> TTNAction ctx a
-viewArticle aID = do art <- S.runQuery $ getArticleById aID
+viewArticle aID = do art <- runQuerySafe $ getArticleById aID
                      maybe (renderSimpleStr "Not found!")
                            (renderPage . renderArticle)
                            art
 
 -- | Article listing
 listArticles :: TTNAction ctx a
-listArticles = do as <- S.runQuery getArticleList
+listArticles = do as <- runQuerySafe getArticleList
                   renderSimpleStr $ show as
 
 -- * Translation
@@ -120,7 +120,7 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
     <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
     <*> "summary"  .: validate wrapMaybe (text Nothing)
     <*> "body"     .: listOf mkParagraphForm (Just $ artBody a) )
-  where writeToDb t = Success <$> S.runQuery (insertTranslation t) -- TODO: fix this
+  where writeToDb t = Success <$> runQuerySafe (insertTranslation t) -- TODO: fix this
         artHasID  a = case artID a of
                         Just aID -> Success aID
                         _        -> Error "Supplied article has no ID"
@@ -142,8 +142,8 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
 -- | Fetch the Article with given ID and its translations to given Language.
 getArtTranslations :: Int -> Language -> TTNAction ctx (Article Stored, [Translation])
 getArtTranslations aID lang = do
-    art <- fromJust <$> S.runQuery (getArticleById aID) -- TODO: not robust
-    ts  <- S.runQuery $ getTranslations aID lang
+    art <- fromJust <$> runQuerySafe (getArticleById aID) -- TODO: not robust
+    ts  <- runQuerySafe $ getTranslations aID lang
     return (art, ts)
 
 -- | Serve and process new-Translation form
