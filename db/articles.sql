@@ -8,4 +8,5 @@ CREATE TABLE articles (
   , summary           text
   , orig_lang         text not null
   , body              text not null
+  , av_trans          text not null
 );

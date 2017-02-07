@@ -54,8 +54,13 @@ renderArticle a = do
     maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
     renderBody $ artBody a
     p_ . toHtml $ "By user " <> (pack . show $ artUID a)
+    p_ $ h "Available translations: "
+    mapM_ translationLink $ artAvTrans a
+    p_ $ h "Translate to:"
     mapM_ translateLink allLanguages
-  where translateLink :: Language -> Html ()
+  where translationLink :: Language -> Html ()
+        translationLink l = p_ . a_ [href_ $ viewTranslationPath a l] $ toHtml l
+        translateLink :: Language -> Html ()
         translateLink l = p_ . a_ [href_ $ newTranslationPath a l] $ toHtml l
 
 -- | For use in listings
@@ -106,7 +111,8 @@ renderTranslation :: Article Stored -> Translation -> Html ()
 renderTranslation a t = do
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
     h1_ . toHtml $ trTitle t
-    p_ . a_ [href_ (artURL a)] . toHtml $ artTitle a
+    p_ . a_ [href_ $ artURL a] . h $ artTitle a
+    p_ . a_ [href_ $ viewArticlePath a] $ h "Original (on this site)"
     renderGTranslate (artOrigLang a) (trLang t) (artURL a) "GT"
     maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
     renderBody $ trBody t

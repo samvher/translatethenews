@@ -23,8 +23,8 @@ import TTN.Model.User
 import TTN.View.Article
 import TTN.View.Core
 
-import Control.Monad                    ( (=<<) )
-import Data.Maybe                       ( fromJust, isNothing )
+import Control.Monad                    ( when, (=<<) )
+import Data.Maybe                       ( fromJust, fromMaybe, isNothing )
 import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text, unpack )
 import Text.Digestive.Form
@@ -58,7 +58,8 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
                             (text $ artURL <$> a)
     <*> "summary"  .: validate wrapMaybe (text $ artSummary =<< a)
     <*> "language" .: validate readLang  (text $ artLangAsText <$> a)
-    <*> "body"     .: validate validBody (text $ bodyAsText . artBody <$> a))
+    <*> "body"     .: validate validBody (text $ bodyAsText . artBody <$> a)
+    <*> "av_trans" .: (pure . fromMaybe [] $ artAvTrans <$> a) )
   where wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
@@ -102,6 +103,17 @@ viewArticle aID = do art <- runQuerySafe $ getArticleById aID
 -- | Article listing
 listArticles :: TTNAction ctx a
 listArticles = renderPage . renderArticleList =<< runQuerySafe getArticleList
+
+-- | Update the "available translations" field
+updateAvTrans :: Int -> TTNAction ctx (Article Stored)
+updateAvTrans aID = do mA <- runQuerySafe $ getArticleById aID
+                       -- TODO: Not sure this is entirely safe, i.e. if
+                       -- renderSimpleStr breaks out of execution.
+                       when (isNothing mA) $ renderSimpleStr errorStr
+                       let a = fromJust mA
+                       langs <- runQuerySafe $ getTransLangs  aID
+                       runQuerySafe $ updateArticle a { artAvTrans = langs }
+  where errorStr = "Error: tried to access non-existing article."
 
 -- * Translation
 
@@ -152,14 +164,15 @@ newTranslation aID lang = do
     let translateForm = mkTranslateForm art ts lang
         renderer      = renderTranslate art lang $
                             S.renderRoute newTranslationR aID lang
-    serveForm "translate" translateForm renderer gotoViewTranslation
+    serveForm "translate" translateForm renderer $ \t -> do
+        updateAvTrans aID
+        gotoViewTranslation t
 
 -- | Show translations for chosen Article in chosen Language
 viewTranslation :: Int -> Language -> TTNAction ctx a
 viewTranslation aID lang = do
     (art, ts) <- getArtTranslations aID lang
     renderPage $ mapM_ (renderTranslation art) ts
-
 
 -- * Redirects
 

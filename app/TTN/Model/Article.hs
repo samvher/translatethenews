@@ -59,6 +59,8 @@ instance ToHtml Language where
 langCode :: Language -> Text
 langCode English = "en"
 langCode Russian = "ru"
+langCode Turkish = "tr"
+langCode Indonesian = "id"
 
 -- * Helper types (used as phantoms)
 
@@ -77,7 +79,8 @@ data Article a =
       artURL     :: Text,
       artSummary :: Maybe Text,
       artOrigLang:: Language,
-      artBody    :: [[(Int, Text)]]
+      artBody    :: [[(Int, Text)]],
+      artAvTrans :: [Language] -- ^ Available translation languages
     } deriving ( Read, Show )
 
 artLangAsText :: Article a -> Text
@@ -101,6 +104,7 @@ instance Pg.FromRow (Article Stored) where
                  summary     <- Pg.field
                  orig_lang   <- Pg.field
                  body        <- Pg.field
+                 av_trans    <- Pg.field
                  return Article {
                           artID       = aid,
                           artUID      = uid,
@@ -110,7 +114,8 @@ instance Pg.FromRow (Article Stored) where
                           artURL      = url,
                           artSummary  = summary,
                           artOrigLang = orig_lang,
-                          artBody     = fromMaybe [] $ maybeRead body }
+                          artBody     = fromMaybe [] $ maybeRead body,
+                          artAvTrans  = fromMaybe [] $ maybeRead av_trans }
 
 -- | This instance is for inserts, when the DB chooses the article ID.
 instance Pg.ToRow (Article UnStored) where
@@ -121,7 +126,8 @@ instance Pg.ToRow (Article UnStored) where
                        , artURL a
                        , artSummary a
                        , artOrigLang a
-                       , show $ artBody a)
+                       , show $ artBody a
+                       , show $ artAvTrans a )
 
 -- | This instance is used for things like updates, when we have an article
 --   ID in the database.
@@ -134,14 +140,15 @@ instance Pg.ToRow (Article Stored) where
                        , artSummary a
                        , artOrigLang a
                        , show $ artBody a 
+                       , show $ artAvTrans a
                        , artID a ) -- ^ At the end for WHERE clause :/
 
 sqlAddArticle :: Pg.Query
 sqlAddArticle =
     [sql| INSERT INTO articles
                         (contributor_id, pub_date, title, author,
-                         url, summary, orig_lang, body)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                         url, summary, orig_lang, body, av_trans)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                  RETURNING * |]
 
 insertArticle :: Article UnStored
@@ -160,6 +167,7 @@ sqlEditArticle =
                             , summary = ?
                             , orig_lang = ?
                             , body = ?
+                            , av_trans = ?
           WHERE id = ?
           RETURNING * |]
 
@@ -238,6 +246,15 @@ sqlGetTranslations = [sql| SELECT * FROM translations
 getTranslations :: Int -> Language -> Pg.Connection -> IO [Translation]
 getTranslations aID lang dbConn = Pg.query dbConn sqlGetTranslations (aID, lang)
 
+sqlGetTransLangs :: Pg.Query
+sqlGetTransLangs =
+    [sql| SELECT DISTINCT trans_lang FROM translations WHERE article_id = ? |]
+
+getTransLangs :: Int -> Pg.Connection -> IO [Language]
+getTransLangs aID dbConn = do
+    (langs :: [Pg.Only Language]) <- Pg.query dbConn sqlGetTransLangs (Pg.Only aID)
+    return $ map Pg.fromOnly langs
+
 -- * Body transformations
 
 -- | The database stores <show>ed versions of line-number/sentence pairs,
@@ -254,4 +271,3 @@ bodyAsParagraphs = map (T.intercalate " " . map snd)
 
 bodyAsText :: [[(Int, Text)]] -> Text
 bodyAsText = T.intercalate "\n\n" . bodyAsParagraphs
-

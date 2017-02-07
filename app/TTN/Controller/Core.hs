@@ -63,16 +63,16 @@ serveForm label form renderer successAction = do
       Nothing -> renderSimpleForm renderer tok view
       Just x  -> successAction x
 
--- | Safely run a query (redirecting to an error page in case of exceptions).
+-- | Safely run a query (showing an error page in case of exceptions).
 --   We have to use forall a ctx to play nice with ScopedTypeVariables,
 --   and the type declaration of q'.
 runQuerySafe :: forall a ctx. (Pg.Connection -> IO a) -> TTNAction ctx a
 runQuerySafe q = do result <- S.runQuery q'
                     case result of
-                      Left  _   -> renderSimpleStr errorStr
+                      Left  err -> renderSimpleStr $ errorStr ++ show err
                       Right res -> return res
   where q' conn = try (q conn) :: IO (Either SomeException a)
-        errorStr = "Sorry, a database error occurred."
+        errorStr = "Sorry, a database error occurred: "
 
 -- | Hello world page
 hello :: TTNAction ctx a
