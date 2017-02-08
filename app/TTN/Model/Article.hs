@@ -16,6 +16,7 @@ import TTN.Util                         ( innerZip, maybeRead )
 
 import Data.Maybe                       ( fromMaybe, listToMaybe )
 import Data.Text                        ( Text, pack, unpack )
+import Data.Time.Clock                  ( UTCTime )
 import Database.PostgreSQL.Simple.SqlQQ ( sql )
 import Lucid                            ( ToHtml(..) )
 import Web.PathPieces
@@ -71,16 +72,18 @@ data UnStored = UnStored
 
 data Article a =
     Article {
-      artID      :: Maybe Int,
-      artUID     :: Int,
-      artPubDate :: Text,
-      artTitle   :: Text,
-      artAuthor  :: Text,
-      artURL     :: Text,
-      artSummary :: Maybe Text,
-      artOrigLang:: Language,
-      artBody    :: [[(Int, Text)]],
-      artAvTrans :: [Language] -- ^ Available translation languages
+      artID       :: Maybe Int,
+      artUID      :: Int,
+      artPubDate  :: Text,
+      artTitle    :: Text,
+      artAuthor   :: Text,
+      artURL      :: Text,
+      artSummary  :: Maybe Text,
+      artOrigLang :: Language,
+      artBody     :: [[(Int, Text)]],
+      artAvTrans  :: [Language], -- ^ Available translation languages
+      artCreated  :: UTCTime,
+      artModified :: UTCTime
     } deriving ( Read, Show )
 
 artLangAsText :: Article a -> Text
@@ -105,6 +108,8 @@ instance Pg.FromRow (Article Stored) where
                  orig_lang   <- Pg.field
                  body        <- Pg.field
                  av_trans    <- Pg.field
+                 created     <- Pg.field
+                 modified    <- Pg.field
                  return Article {
                           artID       = aid,
                           artUID      = uid,
@@ -115,7 +120,9 @@ instance Pg.FromRow (Article Stored) where
                           artSummary  = summary,
                           artOrigLang = orig_lang,
                           artBody     = fromMaybe [] $ maybeRead body,
-                          artAvTrans  = fromMaybe [] $ maybeRead av_trans }
+                          artAvTrans  = fromMaybe [] $ maybeRead av_trans,
+                          artCreated  = created,
+                          artModified = modified }
 
 -- | This instance is for inserts, when the DB chooses the article ID.
 instance Pg.ToRow (Article UnStored) where
@@ -127,7 +134,9 @@ instance Pg.ToRow (Article UnStored) where
                        , artSummary a
                        , artOrigLang a
                        , show $ artBody a
-                       , show $ artAvTrans a )
+                       , show $ artAvTrans a
+                       , artCreated a
+                       , artModified a)
 
 -- | This instance is used for things like updates, when we have an article
 --   ID in the database.
@@ -141,14 +150,17 @@ instance Pg.ToRow (Article Stored) where
                        , artOrigLang a
                        , show $ artBody a 
                        , show $ artAvTrans a
+                       , artCreated a
+                       , artModified a
                        , artID a ) -- ^ At the end for WHERE clause :/
 
 sqlAddArticle :: Pg.Query
 sqlAddArticle =
     [sql| INSERT INTO articles
                         (contributor_id, pub_date, title, author,
-                         url, summary, orig_lang, body, av_trans)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         url, summary, orig_lang, body, av_trans,
+                         created, modified)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  RETURNING * |]
 
 insertArticle :: Article UnStored
@@ -168,6 +180,8 @@ sqlEditArticle =
                             , orig_lang = ?
                             , body = ?
                             , av_trans = ?
+                            , created = ?
+                            , modified = ?
           WHERE id = ?
           RETURNING * |]
 
@@ -199,7 +213,8 @@ data Translation =
       trLang    :: Language,
       trTitle   :: Text,
       trSummary :: Maybe Text,
-      trBody    :: [[(Int, Text)]]
+      trBody    :: [[(Int, Text)]],
+      trCreated :: UTCTime
     } deriving ( Read, Show )
 
 instance Pg.FromRow Translation where
@@ -210,13 +225,15 @@ instance Pg.FromRow Translation where
                  title   <- Pg.field
                  summary <- Pg.field
                  body    <- Pg.field
+                 created <- Pg.field
                  return Translation { trID = id
                                     , trAID = aID
                                     , trUID = uID
                                     , trLang = lang
                                     , trTitle = title
                                     , trSummary = summary
-                                    , trBody = fromMaybe [] $ maybeRead body }
+                                    , trBody = fromMaybe [] $ maybeRead body
+                                    , trCreated = created }
 
 -- | With translations we so far assume they're not edited - instead we
 --   just add new translations add new translations.
@@ -226,13 +243,15 @@ instance Pg.ToRow Translation where
                        , trLang t
                        , trTitle t
                        , trSummary t
-                       , show $ trBody t )
+                       , show $ trBody t
+                       , trCreated t )
 
 sqlAddTranslation :: Pg.Query
 sqlAddTranslation =
     [sql| INSERT INTO translations
-                        (article_id, contributor_id, trans_lang, title, summary, body)
-                 VALUES (?, ?, ?, ?, ?, ?)
+                        (article_id, contributor_id, trans_lang, title,
+                         summary, body, created)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)
                  RETURNING * |]
 
 insertTranslation :: Translation -> Pg.Connection -> IO Translation
@@ -271,3 +290,24 @@ bodyAsParagraphs = map (T.intercalate " " . map snd)
 
 bodyAsText :: [[(Int, Text)]] -> Text
 bodyAsText = T.intercalate "\n\n" . bodyAsParagraphs
+
+-- * ToRow fix
+
+instance (Pg.ToField a, Pg.ToField b, Pg.ToField c, Pg.ToField d,
+          Pg.ToField e, Pg.ToField f, Pg.ToField g, Pg.ToField h,
+          Pg.ToField i, Pg.ToField j, Pg.ToField k)
+    => Pg.ToRow (a,b,c,d,e,f,g,h,i,j,k) where
+    toRow (a,b,c,d,e,f,g,h,i,j,k) =
+        [Pg.toField a, Pg.toField b, Pg.toField c, Pg.toField d,
+         Pg.toField e, Pg.toField f, Pg.toField g, Pg.toField h,
+         Pg.toField i, Pg.toField j, Pg.toField k]
+
+instance (Pg.ToField a, Pg.ToField b, Pg.ToField c, Pg.ToField d,
+          Pg.ToField e, Pg.ToField f, Pg.ToField g, Pg.ToField h,
+          Pg.ToField i, Pg.ToField j, Pg.ToField k, Pg.ToField l)
+    => Pg.ToRow (a,b,c,d,e,f,g,h,i,j,k,l) where
+    toRow (a,b,c,d,e,f,g,h,i,j,k,l) =
+        [Pg.toField a, Pg.toField b, Pg.toField c, Pg.toField d,
+         Pg.toField e, Pg.toField f, Pg.toField g, Pg.toField h,
+         Pg.toField i, Pg.toField j, Pg.toField k, Pg.toField l]
+

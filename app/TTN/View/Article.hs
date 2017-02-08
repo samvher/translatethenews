@@ -47,6 +47,8 @@ renderArticleForm target tok view = pageTemplate $
 -- | Generate HTML for showing an Article
 renderArticle :: Article Stored -> Html ()
 renderArticle a = do
+    p_ . em_ . toHtml $ "Submitted " <> (show $ artCreated a)
+    p_ . em_ . toHtml $ "Last edited " <> (show $ artModified a)
     h1_ . toHtml $ artTitle a
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
     p_ . a_ [href_ $ artURL a] $ h "Original"
@@ -109,6 +111,7 @@ renderTranslate art lang target tok view = pageTemplate $
 -- | Generate HTML for showing a translation
 renderTranslation :: Article Stored -> Translation -> Html ()
 renderTranslation a t = do
+    p_ . em_ . toHtml $ "Submitted " <> (show $ trCreated t)
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
     h1_ . toHtml $ trTitle t
     p_ . a_ [href_ $ artURL a] . h $ artTitle a

@@ -59,7 +59,9 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
     <*> "summary"  .: validate wrapMaybe (text $ artSummary =<< a)
     <*> "language" .: validate readLang  (text $ artLangAsText <$> a)
     <*> "body"     .: validate validBody (text $ bodyAsText . artBody <$> a)
-    <*> "av_trans" .: (pure . fromMaybe [] $ artAvTrans <$> a) )
+    <*> "av_trans" .: (pure . fromMaybe [] $ artAvTrans <$> a) 
+    <*> "created"  .: validateM valCreated (pure $ artCreated <$> a)
+    <*> "modified" .: validateM (\_ -> Success <$> now) (pure ()) )
   where wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
@@ -78,6 +80,9 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
                                 Nothing -> insertArticle
                                 Just _  -> updateArticle . markStored
                        in Success <$> runQuerySafe (q d)
+        valCreated t = if isNothing t
+                         then Success <$> now
+                         else return . Success $ fromJust t
 
 -- | Serve and process new-Article form
 newArticle :: TTNAction ctx a
@@ -130,7 +135,8 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
     -- TODO: pre-fill with existing translations
     <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
     <*> "summary"  .: validate wrapMaybe (text Nothing)
-    <*> "body"     .: listOf mkParagraphForm (Just $ artBody a) )
+    <*> "body"     .: listOf mkParagraphForm (Just $ artBody a)
+    <*> "created"  .: validateM (\_ -> Success <$> now) (pure ()) )
   where writeToDb t = Success <$> runQuerySafe (insertTranslation t) -- TODO: fix this
         artHasID  a = case artID a of
                         Just aID -> Success aID

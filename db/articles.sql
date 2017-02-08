@@ -9,4 +9,6 @@ CREATE TABLE articles (
   , orig_lang         text not null
   , body              text not null
   , av_trans          text not null
+  , created           timestamp with time zone not null
+  , modified          timestamp with time zone not null
 );

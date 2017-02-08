@@ -14,8 +14,10 @@ import TTN.Model.Core
 import TTN.View.Core
 
 import Control.Exception                ( SomeException, try )
+import Control.Monad.IO.Class           ( liftIO )
 import Data.HVect                       ( HVect(..) )
 import Data.Text                        ( Text )
+import Data.Time.Clock                  ( UTCTime, getCurrentTime )
 import Lucid                            ( Html )
 import Network.HTTP.Types.Status        ( status403 )
 import Text.Digestive.Form              ( Form )
@@ -77,3 +79,8 @@ runQuerySafe q = do result <- S.runQuery q'
 -- | Hello world page
 hello :: TTNAction ctx a
 hello = renderSimpleStr "Привет, мир!"
+
+-- | Get current time (validator for use in forms)
+now :: TTNAction ctx UTCTime
+now = liftIO $ getCurrentTime
+
