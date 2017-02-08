@@ -115,6 +115,12 @@ updateAvTrans aID = do art   <- findArticle aID
                        langs <- runQuerySafe $ getTransLangs aID
                        runQuerySafe $ updateArticle art { artAvTrans = langs }
 
+-- | Article listing for specific language (where translation to this
+--   language is available).
+articlesInLang :: Language -> TTNAction ctx a
+articlesInLang l = renderPage . renderArticleList =<<
+                       runQuerySafe (getArticlesTranslatedToLang l)
+
 -- * Translation
 
 -- | Form for new translations. The supplied Article is the one we are

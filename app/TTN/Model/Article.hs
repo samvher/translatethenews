@@ -274,6 +274,19 @@ getTransLangs aID dbConn = do
     (langs :: [Pg.Only Language]) <- Pg.query dbConn sqlGetTransLangs (Pg.Only aID)
     return $ map Pg.fromOnly langs
 
+sqlGetArticlesTranslatedToLang :: Pg.Query
+sqlGetArticlesTranslatedToLang =
+    [sql| SELECT DISTINCT a.*
+          FROM translations AS t
+          INNER JOIN articles AS a
+            ON t.article_id = a.id
+          WHERE t.trans_lang = ? |]
+
+-- TODO: Maybe we want to include articles originally in the language?
+getArticlesTranslatedToLang :: Language -> Pg.Connection -> IO [Article Stored]
+getArticlesTranslatedToLang lang dbConn =
+    Pg.query dbConn sqlGetArticlesTranslatedToLang $ Pg.Only lang
+
 -- * Body transformations
 
 -- | The database stores <show>ed versions of line-number/sentence pairs,

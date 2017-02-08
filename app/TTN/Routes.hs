@@ -41,6 +41,9 @@ listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
 
+listArticlesInR :: Path '[Language] Open
+listArticlesInR = "articles" <//> "in" <//> var
+
 loginR, logoutR, registerR :: Path '[] Open
 loginR    = "login"
 logoutR   = "logout"
