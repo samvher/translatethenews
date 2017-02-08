@@ -111,14 +111,9 @@ listArticles = renderPage . renderArticleList =<< runQuerySafe getArticleList
 
 -- | Update the "available translations" field
 updateAvTrans :: Int -> TTNAction ctx (Article Stored)
-updateAvTrans aID = do mA <- runQuerySafe $ getArticleById aID
-                       -- TODO: Not sure this is entirely safe, i.e. if
-                       -- renderSimpleStr breaks out of execution.
-                       when (isNothing mA) $ renderSimpleStr errorStr
-                       let a = fromJust mA
-                       langs <- runQuerySafe $ getTransLangs  aID
-                       runQuerySafe $ updateArticle a { artAvTrans = langs }
-  where errorStr = "Error: tried to access non-existing article."
+updateAvTrans aID = do art   <- findArticle aID
+                       langs <- runQuerySafe $ getTransLangs aID
+                       runQuerySafe $ updateArticle art { artAvTrans = langs }
 
 -- * Translation
 
@@ -137,7 +132,7 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
     <*> "summary"  .: validate wrapMaybe (text Nothing)
     <*> "body"     .: listOf mkParagraphForm (Just $ artBody a)
     <*> "created"  .: validateM (\_ -> Success <$> now) (pure ()) )
-  where writeToDb t = Success <$> runQuerySafe (insertTranslation t) -- TODO: fix this
+  where writeToDb t = Success <$> runQuerySafe (insertTranslation t)
         artHasID  a = case artID a of
                         Just aID -> Success aID
                         _        -> Error "Supplied article has no ID"
@@ -154,12 +149,22 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
         mkSentenceForm (Just (i, s)) = (\t _ -> (i,t))
                                          <$> "translation" .: text Nothing
                                          <*> "original"    .: text (Just s)
-        mkSentenceForm Nothing = pure (0, "bla") -- TODO: figure this out
+        -- I don't think this actually needs to be here... but want to
+        -- avoid non-exhaustive pattern matching.
+        mkSentenceForm Nothing = pure (0, "bla")
+
+findArticle :: Int -> TTNAction ctx (Article Stored)
+findArticle aID = do
+    art <- runQuerySafe (getArticleById aID)
+    if (isNothing art)
+      then renderSimpleStr errorStr
+      else return $ fromJust art
+  where errorStr = "Error: tried to access non-existing article."
 
 -- | Fetch the Article with given ID and its translations to given Language.
 getArtTranslations :: Int -> Language -> TTNAction ctx (Article Stored, [Translation])
 getArtTranslations aID lang = do
-    art <- fromJust <$> runQuerySafe (getArticleById aID) -- TODO: not robust
+    art <- findArticle aID
     ts  <- runQuerySafe $ getTranslations aID lang
     return (art, ts)
 
