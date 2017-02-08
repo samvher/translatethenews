@@ -54,6 +54,7 @@ executable translatethenews
                      , text
                      , time
                      , transformers
+                     , wai-middleware-static
   default-language:    Haskell2010
 
 test-suite translatethenews-test
