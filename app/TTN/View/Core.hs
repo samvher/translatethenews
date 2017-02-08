@@ -69,7 +69,6 @@ inputPass_ = constructView DL.inputPassword
 submit :: Text -> Html ()
 submit value = p_ $ input_ [type_ "submit", value_ value]
 
--- TODO: This name is the default, maybe it can be extracted from conf
 csrf :: Token -> Html ()
 csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 

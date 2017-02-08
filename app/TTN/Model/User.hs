@@ -43,13 +43,12 @@ sqlAddUser =
 insertUser :: (Text, Text, Text) -> Pg.Connection -> IO ()
 insertUser user dbConn = void $ Pg.execute dbConn sqlAddUser user
 
--- TODO: Check username/email separately
 sqlTestUniqueness :: Pg.Query
 sqlTestUniqueness = [sql| SELECT COUNT(*)
                           FROM users WHERE name = ? OR email = ? |]
 
 -- | Check that given name or emailaddress has not been used before
-isUnique :: (Text, Text) -> Pg.Connection -> IO Bool -- TODO: get rid of head
+isUnique :: (Text, Text) -> Pg.Connection -> IO Bool
 isUnique vals dbConn = do
     (counts :: [Pg.Only Int]) <- Pg.query dbConn sqlTestUniqueness vals
     return . (== 0) . Pg.fromOnly $ head counts
