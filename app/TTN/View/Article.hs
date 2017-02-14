@@ -81,8 +81,10 @@ renderListArticle :: Article Stored -> Html ()
 renderListArticle a =
     div_ [class_ "list-elem article"] $ do
       h3_ . a_ [href_ (viewArticlePath a)] . toHtml $ artTitle a
-      p_ . em_ $ do h (artPubDate a <> " - " <> artAuthor a <> " - ")
-                    a_ [href_ $ artURL a] "Original"
+      p_ [class_ "list-article-summary"] . h . fromMaybe "" $ artSummary a
+      div_ [class_ "article-meta"] . em_ $ do
+          h (artPubDate a <> " - " <> artAuthor a <> " - ")
+          a_ [href_ $ artURL a] "Original"
 
 renderArticleList :: [Article Stored] -> Html ()
 renderArticleList as = do
