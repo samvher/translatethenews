@@ -49,7 +49,7 @@ renderArticle :: Article Stored -> Html ()
 renderArticle a = do
     p_ . em_ . toHtml $ "Submitted " <> (show $ artCreated a)
     p_ . em_ . toHtml $ "Last edited " <> (show $ artModified a)
-    h1_ . toHtml $ artTitle a
+    h2_ . toHtml $ artTitle a
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
     p_ . a_ [href_ $ artURL a] $ h "Original"
     p_ . a_ [href_ $ editArticlePath a] $ h "Edit"
@@ -68,12 +68,14 @@ renderArticle a = do
 -- | For use in listings
 renderListArticle :: Article Stored -> Html ()
 renderListArticle a =
-    div_ (do h3_ . a_ [href_ (viewArticlePath a)] . toHtml $ artTitle a
-             p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a))
+    div_ [class_ "list-elem article"] $ do
+      h3_ . a_ [href_ (viewArticlePath a)] . toHtml $ artTitle a
+      p_ . em_ $ do h (artPubDate a <> " - " <> artAuthor a <> " - ")
+                    a_ [href_ $ artURL a] "Original"
 
 renderArticleList :: [Article Stored] -> Html ()
 renderArticleList as = do
-    p_ . a_ [href_ newArticlePath] $ toHtml ("New article" :: Text)
+    div_ [id_ "new-article-link"] . a_ [href_ newArticlePath] $ h "Add article"
     mapM_ renderListArticle as
 
 -- * Translation views
@@ -93,13 +95,13 @@ renderTranslate art lang target tok view = pageTemplate $
     form_ [method_ "post", action_ target]
           (do DL.errorList "translate" view
               renderGTranslate (artOrigLang art) lang (artURL art) "GT"
-              h2_ $ toHtml ("Title" :: Text)
+              h3_ $ toHtml ("Title" :: Text)
               p_ . toHtml $ artTitle art
               inputText_ "translate.title" "" view
-              h2_ $ toHtml ("Summary" :: Text)
+              h3_ $ toHtml ("Summary" :: Text)
               p_ . toHtml . fromMaybe "" $ artSummary art
               inputText_ "translate.summary" "" view
-              h2_ $ toHtml ("Body" :: Text)
+              h3_ $ toHtml ("Body" :: Text)
               forM_ (listSubViews "translate.body" view) $ \v' ->
                 p_ $ forM_ (listSubViews "paragraph" v') $ \v ->
                   do p_ $ DL.label "translation" v (toHtml $ fieldInputText "original" v) 

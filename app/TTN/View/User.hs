@@ -33,7 +33,7 @@ renderRegisterForm tok view = pageTemplate $
 -- * Login
 
 renderLoginForm :: Token -> View (Html ()) -> Html ()
-renderLoginForm tok view = pageTemplate $
+renderLoginForm tok view = pageTemplate . div_ [id_ "login-form"] $
     form_ [method_ "post", action_ "/login"]
           (do DL.errorList "login" view
               inputText_ "login.username" "Username" view
@@ -54,7 +54,9 @@ mustLogin = p_ (do h "Sorry, no access! "
                    a_ [href_ loginPath] $ h "Log in first.")
 
 loggedIn :: Html ()
-loggedIn = p_ (do h "You're already logged in!"
-                  a_ [href_ logoutPath] $ h "Log out"
-                  h " if you want to go here.")
+loggedIn = div_ [id_ "simple-message"] $ do 
+    h "You're already logged in! "
+    a_ [href_ logoutPath] $ h "Log out"
+    h " if you want to go here."
+
 

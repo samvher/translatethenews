@@ -10,6 +10,7 @@ module TTN.View.Core where
 
 import TTN.Model.Core
 
+import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text )
 import Data.Text.Lazy                   ( toStrict )
 import Lucid
@@ -30,17 +31,27 @@ lucid :: Html () -> TTNAction ctx a
 lucid = S.html . toStrict . renderText
 
 pageTemplate :: Html () -> Html ()
-pageTemplate contents = html_ (do head_ (title_ "Translate the News")
-                                  body_ contents)
+pageTemplate contents = html_ $ do
+  head_ $ do title_ "Translate the News"
+             link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/reset.css"]
+             link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/style.css"]
+             let gFonts = "https://fonts.googleapis.com/css?" <>
+                   "family=Open+Sans:400,400i|Oswald:300,500&amp;" <>
+                   "subset=cyrillic,cyrillic-ext,greek,greek-ext," <>
+                   "latin-ext,vietnamese"
+             link_ [href_ gFonts, rel_ "stylesheet"]
+  body_ . div_ [id_ "container"] $ do
+    div_ [id_ "header"] . h1_ . a_ [href_ "/"] $ "translatethenews.org"
+    div_ [id_ "content-main"] contents
 
 errorPage :: Html () -> Html ()
-errorPage = pageTemplate
+errorPage = pageTemplate . div_ [id_ "simple-message"]
 
 renderPage :: Html () -> TTNAction ctx a
 renderPage = lucid . pageTemplate
 
 renderSimpleStr :: String -> TTNAction ctx a
-renderSimpleStr msg = renderPage $ toHtml msg
+renderSimpleStr msg = renderPage . div_ [id_ "simple-message"] $ toHtml msg
 
 renderSimpleForm :: FormRenderer -> Token -> View Text -> TTNAction ctx a
 renderSimpleForm renderer tok view = lucid . renderer tok $ fmap toHtml view
@@ -53,9 +64,10 @@ constructView :: (Text -> View (Html ()) -> Html ())
               -> Text
               -> View (Html ())
               -> Html ()
-constructView f ref lbl view = p_ (do DL.label ref view $ toHtml lbl
-                                      f ref view
-                                      DL.errorList ref view)
+constructView f ref lbl view = div_ [class_ "form-input"] $ do
+    DL.label ref view $ h lbl
+    f ref view
+    DL.errorList ref view
 
 inputText_ :: Text -> Text -> View (Html ()) -> Html ()
 inputText_ = constructView DL.inputText
@@ -67,7 +79,7 @@ inputPass_ :: Text -> Text -> View (Html ()) -> Html ()
 inputPass_ = constructView DL.inputPassword
 
 submit :: Text -> Html ()
-submit value = p_ $ input_ [type_ "submit", value_ value]
+submit value = input_ [type_ "submit", value_ value, class_ "input-submit"]
 
 csrf :: Token -> Html ()
 csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]

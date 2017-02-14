@@ -21,7 +21,7 @@ import Web.Spock
 
 -- | Connects paths, requests, handlers, authentication requirements
 app :: TTNMonad ()
-app = do middleware . staticPolicy $ addBase "/static"
+app = do middleware . staticPolicy $ addBase "static"
          prehook initHook $ do
              get listArticlesR   listArticles
              get listArticlesInR articlesInLang

@@ -1,0 +1,126 @@
+body {
+  background-color: #68829e;
+  font-family: 'Open Sans', sans-serif;
+}
+
+#container {
+  width: 960px;
+  margin: 0.5em auto;
+  background-color: white;
+  padding: 0.4em;
+}
+
+#header {
+  width: 100%;
+  background-color: #505160;
+  overflow: auto;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 2em;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 300;
+  margin: 0.5em 0.5em 0.65em 0.5em;
+}
+
+h1 a {
+  color: white;
+}
+
+h1 a:hover {
+  text-decoration: none;
+}
+
+#content-main {
+}
+
+#new-article-link {
+  height: 1.5em;
+  margin-right: 0.6em;
+}
+
+#new-article-link a {
+  float: right;
+  font-weight: bold;
+}
+
+.list-elem.article {
+  border-top: 1px solid #598234;
+  padding: 0.6em;
+}
+
+h2, h3 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+h3 {
+  font-size: 1.3em;
+  margin-bottom: 0.5em;
+}
+
+a {
+  color: #598234;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+p {
+  color: #252530;
+  line-height: 1.5em;
+}
+
+#simple-message {
+  padding: 1.5em 0.6em;
+}
+
+#login-form {
+  width: 325px;
+  margin: 1em auto;
+  padding: 1em;
+  border: 1px solid #598234;
+}
+
+#login-form .form-input {
+  margin-bottom: 0.5em;
+  line-height: 1.5em;
+}
+
+#login-form label {
+  display: inline-block;
+  width: 120px;
+}
+
+#login-form input {
+  display: inline-block;
+  width: 200px;
+}
+
+#login-form .input-submit {
+  display: block;
+  width: 100px;
+  border: 1px solid #598234;
+  font-weight: bold;
+  font-size: 1.2em;
+  margin: 1em auto 0 auto;
+  background-color: white;
+  color: #598234;
+}
+
+#login-form .input-submit:hover {
+  background-color: #598234;
+  color: white;
+  border: 1px solid #aebd38;
+}
+
+em {
+  font-style: italic;
+}
