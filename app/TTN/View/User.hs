@@ -50,8 +50,9 @@ renderProfileBadge u = em_ . toHtml $ uName u
 -- * Authentication pages
 
 mustLogin :: Html ()
-mustLogin = p_ (do h "Sorry, no access! "
-                   a_ [href_ loginPath] $ h "Log in first.")
+mustLogin = div_ [id_ "simple-message"] $ do
+    h "Sorry, no access! "
+    a_ [href_ loginPath] $ h "Log in first."
 
 loggedIn :: Html ()
 loggedIn = div_ [id_ "simple-message"] $ do 

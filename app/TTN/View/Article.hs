@@ -34,18 +34,20 @@ renderBody b = mapM_ (p_ . toHtml) $ bodyAsParagraphs b
 
 -- | Generate HTML for new/edit article form
 renderArticleForm :: Text -> Token -> View (Html ()) -> Html ()
-renderArticleForm target tok view = pageTemplate $
-    form_ [method_ "post", action_ target]
-          (do DL.errorList "article" view
+renderArticleForm target tok view = pageTemplate .
+    div_ [id_ "new-article-form"] $ do 
+        h2_ "Article"
+        form_ [method_ "post", action_ target] $ do
+              DL.errorList "article" view
               inputText_ "article.pub_date" "Publication date (yyyy-mm-dd)" view
               inputText_ "article.title"    "Title"    view
               inputText_ "article.author"   "Author"   view
               inputText_ "article.url"      "URL"      view
-              inputText_ "article.summary"  "Summary"  view
               inputText_ "article.language" "Language" view
+              inputTextArea_ (Just 5)  (Just 100) "article.summary"  "Summary"  view
               inputTextArea_ (Just 25) (Just 100) "article.body" "Body" view
               csrf tok
-              submit "Submit article")
+              submit "Submit article"
 
 getTime :: FormatTime t => t -> String
 getTime = formatTime defaultTimeLocale "%e %B %Y, %H:%M"
@@ -104,24 +106,27 @@ renderTranslate :: Article Stored
                 -> Token
                 -> View (Html ())
                 -> Html ()
-renderTranslate art lang target tok view = pageTemplate $
-    form_ [method_ "post", action_ target]
-          (do DL.errorList "translate" view
-              renderGTranslate (artOrigLang art) lang (artURL art) "GT"
-              h3_ $ toHtml ("Title" :: Text)
-              p_ . toHtml $ artTitle art
-              inputText_ "translate.title" "" view
-              h3_ $ toHtml ("Summary" :: Text)
-              p_ . toHtml . fromMaybe "" $ artSummary art
-              inputText_ "translate.summary" "" view
-              h3_ $ toHtml ("Body" :: Text)
-              forM_ (listSubViews "translate.body" view) $ \v' ->
-                p_ $ forM_ (listSubViews "paragraph" v') $ \v ->
-                  do p_ $ DL.label "translation" v (toHtml $ fieldInputText "original" v) 
-                     p_ $ DL.inputTextArea (Just 2) (Just 120) "translation" v
-                     DL.errorList "translation" v
-              csrf tok
-              submit "Submit translation")
+renderTranslate art lang target tok view = pageTemplate .
+    div_ [id_ "translation-form"] .  form_ [method_ "post", action_ target] $ do
+        DL.errorList "translate" view
+        div_ [id_ "gt-link"] $ renderGTranslate (artOrigLang art) lang
+                                                (artURL art)
+                                                "View on Google Translate"
+        h3_ $ h "Title"
+        toHtml $ artTitle art
+        inputText_ "translate.title" "" view
+        h3_ $ h "Summary"
+        toHtml . fromMaybe "" $ artSummary art
+        inputTextArea_ (Just 5) (Just 110) "translate.summary" "" view
+        h3_ $ h "Body"
+        forM_ (listSubViews "translate.body" view) $ \v' ->
+          div_ [class_ "body-par"] $ forM_ (listSubViews "paragraph" v') $ \v ->
+              div_ [class_ "body-sentence"] $ do
+                  DL.label "translation" v (toHtml $ fieldInputText "original" v) 
+                  DL.inputTextArea (Just 2) (Just 110) "translation" v
+                  DL.errorList "translation" v
+        csrf tok
+        submit "Submit translation"
 
 -- | Generate HTML for showing a translation
 renderTranslation :: Article Stored -> Translation -> Html ()
