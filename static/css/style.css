@@ -35,12 +35,12 @@ h1 a:hover {
 #content-main {
 }
 
-#new-article-link {
+#new-article-link, #edit-article-link {
   height: 1.5em;
   margin-right: 0.6em;
 }
 
-#new-article-link a {
+#new-article-link a, #edit-article-link a {
   float: right;
   font-weight: bold;
 }
@@ -50,13 +50,45 @@ h1 a:hover {
   padding: 0.6em;
 }
 
+#view-article {
+  padding: 0.6em;
+}
+
+.user-badge {
+  width: 250px;
+  height: 60px;
+  padding: 0.5em;
+  /* border: 1px solid #505160; */
+  float: right;
+  margin-top: 1.2em;
+  text-align: right;
+}
+
+#available-translations {
+  border-top: 1px solid #505160;
+  margin: 1.2em 0 0 0;
+  padding: 0.5em 0 0 0;
+}
+
+#translate-to {
+  margin: 0.5em 0 0 0;
+  padding: 0.5em 0 0 0;
+}
+
+.translation-link, .translate-link {
+  display: inline-block;
+  margin: 0 0.5em;
+}
+
 h2, h3 {
   font-family: 'Oswald', sans-serif;
   font-weight: 500;
 }
 
 h2 {
-  font-size: 1.5em;
+  font-size: 2em;
+  color: #505160;
+  margin-bottom: 0.5em;
 }
 
 h3 {
@@ -75,7 +107,9 @@ a:hover {
 
 p {
   color: #252530;
-  line-height: 1.5em;
+  line-height: 1.8em;
+  margin-top: 1.1em;
+  font-size: 1.1em;
 }
 
 #simple-message {

@@ -17,6 +17,9 @@ import Control.Monad                    ( forM_ )
 import Data.Maybe                       ( fromMaybe )
 import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text, pack )
+import Data.Time.Format                 ( FormatTime
+                                        , defaultTimeLocale
+                                        , formatTime )
 import Lucid
 import Text.Digestive.Form
 import Text.Digestive.View
@@ -44,26 +47,34 @@ renderArticleForm target tok view = pageTemplate $
               csrf tok
               submit "Submit article")
 
+getTime :: FormatTime t => t -> String
+getTime = formatTime defaultTimeLocale "%e %B %Y, %H:%M"
+
 -- | Generate HTML for showing an Article
 renderArticle :: Article Stored -> Html ()
-renderArticle a = do
-    p_ . em_ . toHtml $ "Submitted " <> (show $ artCreated a)
-    p_ . em_ . toHtml $ "Last edited " <> (show $ artModified a)
+renderArticle a = div_ [id_ "view-article"] $ do
+    -- p_ . em_ . toHtml $ "Submitted " <> (getTime $ artCreated a)
+    -- p_ . em_ . toHtml $ "Last edited " <> (getTime $ artModified a)
+    div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $ h "Edit article"
     h2_ . toHtml $ artTitle a
-    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
-    p_ . a_ [href_ $ artURL a] $ h "Original"
-    p_ . a_ [href_ $ editArticlePath a] $ h "Edit"
+    div_ [class_ "art-time-author"] . em_ $ do
+      h $ artPubDate a <> " - " <> artAuthor a <> " - "
+      a_ [href_ $ artURL a] $ h "Original"
     maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
     renderBody $ artBody a
-    p_ . toHtml $ "By user " <> (pack . show $ artUID a)
-    p_ $ h "Available translations: "
-    mapM_ translationLink $ artAvTrans a
-    p_ $ h "Translate to:"
-    mapM_ translateLink allLanguages
+    div_ [class_ "user-badge"] . h $ "Contributed by user " <> (pack . show $ artUID a)
+    div_ [id_ "available-translations"] $ do
+      h "Available translations: "
+      mapM_ translationLink $ artAvTrans a
+    div_ [id_ "translate-to"] $ do
+      h "Translate to:"
+      mapM_ translateLink allLanguages
   where translationLink :: Language -> Html ()
-        translationLink l = p_ . a_ [href_ $ viewTranslationPath a l] $ toHtml l
+        translationLink l = div_ [class_ "translation-link"] $
+                              a_ [href_ $ viewTranslationPath a l] $ toHtml l
         translateLink :: Language -> Html ()
-        translateLink l = p_ . a_ [href_ $ newTranslationPath a l] $ toHtml l
+        translateLink l = div_ [class_ "translate-link"] $
+                            a_ [href_ $ newTranslationPath a l] $ toHtml l
 
 -- | For use in listings
 renderListArticle :: Article Stored -> Html ()
