@@ -110,6 +110,7 @@ processLogout = do S.modifySession $ \s -> s { sessUser = Nothing }
 
 -- * Get current user
 
+-- | Weird formulation because it is used as a Form validator
 getLoggedInUID :: () -> TTNAction ctx (Result Text Int)
 getLoggedInUID _ = do u <- sessUser <$> S.readSession
                       maybe (error "Not logged in") (return . Success . uID) u
