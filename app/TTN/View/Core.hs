@@ -31,10 +31,10 @@ lucid :: TTNView ctx () -> TTNAction ctx a
 lucid v = S.html . toStrict =<< renderTextT v
 
 pageTemplate :: TTNView ctx () -> TTNView ctx ()
-pageTemplate contents = html_ ( pageHead >> pageBody contents )
+pageTemplate contents = html_ ( htmlHead >> htmlBody contents )
 
-pageHead :: TTNView ctx ()
-pageHead = head_ $ do
+htmlHead :: TTNView ctx ()
+htmlHead = head_ $ do
     title_ "Translate the News"
     link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/reset.css"]
     link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/style.css"]
@@ -44,8 +44,8 @@ pageHead = head_ $ do
           "latin-ext,vietnamese"
     link_ [href_ gFonts, rel_ "stylesheet"]
 
-pageBody :: TTNView ctx () -> TTNView ctx ()
-pageBody contents = body_ . div_ [id_ "container"] $ do
+htmlBody :: TTNView ctx () -> TTNView ctx ()
+htmlBody contents = body_ . div_ [id_ "container"] $ do
     div_ [id_ "header"] . h1_ . a_ [href_ "/"] $ "translatethenews.org"
     div_ [id_ "content-main"] contents
 
