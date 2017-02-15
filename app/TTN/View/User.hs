@@ -10,6 +10,7 @@ module TTN.View.User where
 
 import TTN.Routes
 
+import TTN.Model.Core
 import TTN.Model.User
 import TTN.View.Core
 
@@ -20,7 +21,7 @@ import qualified Text.Digestive.Lucid.Html5 as DL
 
 -- * Registration
 
-renderRegisterForm :: Token -> View (Html ()) -> Html ()
+renderRegisterForm :: Token -> View (TTNView ctx ()) -> TTNView ctx ()
 renderRegisterForm tok view = pageTemplate $
     form_ [method_ "post", action_ "/register"]
           (do DL.errorList "register" view
@@ -32,7 +33,7 @@ renderRegisterForm tok view = pageTemplate $
 
 -- * Login
 
-renderLoginForm :: Token -> View (Html ()) -> Html ()
+renderLoginForm :: Token -> View (TTNView ctx ()) -> TTNView ctx ()
 renderLoginForm tok view = pageTemplate . div_ [id_ "login-form"] $
     form_ [method_ "post", action_ "/login"]
           (do DL.errorList "login" view
@@ -44,17 +45,17 @@ renderLoginForm tok view = pageTemplate . div_ [id_ "login-form"] $
 -- * User profile
 
 -- TODO: Flesh out
-renderProfileBadge :: User -> Html ()
+renderProfileBadge :: User -> TTNView ctx ()
 renderProfileBadge u = em_ . toHtml $ uName u
 
 -- * Authentication pages
 
-mustLogin :: Html ()
+mustLogin :: TTNView ctx ()
 mustLogin = div_ [id_ "simple-message"] $ do
     h "Sorry, no access! "
     a_ [href_ loginPath] $ h "Log in first."
 
-loggedIn :: Html ()
+loggedIn :: TTNView ctx ()
 loggedIn = div_ [id_ "simple-message"] $ do 
     h "You're already logged in! "
     a_ [href_ logoutPath] $ h "Log out"

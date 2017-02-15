@@ -18,7 +18,6 @@ import Control.Monad.IO.Class           ( liftIO )
 import Data.HVect                       ( HVect(..) )
 import Data.Text                        ( Text )
 import Data.Time.Clock                  ( UTCTime, getCurrentTime )
-import Lucid                            ( Html )
 import Network.HTTP.Types.Status        ( status403 )
 import Text.Digestive.Form              ( Form )
 import Web.Spock.Digestive              ( runForm )
@@ -40,7 +39,7 @@ getCfg connInfo = do
     return cfg' { S.spc_csrfProtection = True }
 
 -- | Serve access denied page
-noAccess :: Html () -> TTNAction ctx a
+noAccess :: TTNView ctx () -> TTNAction ctx a
 noAccess msg = do S.setStatus status403
                   renderPage msg
 
@@ -55,7 +54,7 @@ initHook = return HNil
 --   some of the pain of working with CSRF tokens.
 serveForm :: Text
           -> Form Text (TTNAction ctx) a
-          -> FormRenderer
+          -> FormRenderer ctx
           -> (a -> TTNAction ctx b)
           -> TTNAction ctx b
 serveForm label form renderer successAction = do

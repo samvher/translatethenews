@@ -8,6 +8,8 @@ module TTN.Model.Core where
 
 import TTN.Model.User
 
+import Lucid                                        ( HtmlT )
+
 import qualified Web.Spock as S
 import qualified Web.Spock.Config as S
 import qualified Database.PostgreSQL.Simple as Pg
@@ -39,4 +41,5 @@ defState = TTNSt ()
 type TTNAction ctx = S.SpockActionCtx ctx Pg.Connection TTNSes TTNSt
 type TTNCfg        = S.SpockCfg           Pg.Connection TTNSes TTNSt
 type TTNMonad  ctx = S.SpockCtxM      ctx Pg.Connection TTNSes TTNSt ()
+type TTNView   ctx = HtmlT (TTNAction ctx)
 

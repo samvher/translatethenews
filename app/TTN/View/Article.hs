@@ -11,6 +11,7 @@ module TTN.View.Article where
 import TTN.Routes
 
 import TTN.Model.Article
+import TTN.Model.Core
 import TTN.View.Core
 
 import Control.Monad                    ( forM_ )
@@ -27,13 +28,13 @@ import Text.Digestive.View
 import qualified Text.Digestive.Lucid.Html5 as DL
 
 -- | Render the body of an Article or Translation
-renderBody :: [[(Int, Text)]] -> Html ()
+renderBody :: [[(Int, Text)]] -> TTNView ctx ()
 renderBody b = mapM_ (p_ . toHtml) $ bodyAsParagraphs b
 
 -- * Article views
 
 -- | Generate HTML for new/edit article form
-renderArticleForm :: Text -> Token -> View (Html ()) -> Html ()
+renderArticleForm :: Text -> Token -> View (TTNView ctx ()) -> TTNView ctx ()
 renderArticleForm target tok view = pageTemplate .
     div_ [id_ "new-article-form"] $ do 
         h2_ "Article"
@@ -53,7 +54,7 @@ getTime :: FormatTime t => t -> String
 getTime = formatTime defaultTimeLocale "%e %B %Y, %H:%M"
 
 -- | Generate HTML for showing an Article
-renderArticle :: Article Stored -> Html ()
+renderArticle :: Article Stored -> TTNView ctx ()
 renderArticle a = div_ [id_ "view-article"] $ do
     -- p_ . em_ . toHtml $ "Submitted " <> (getTime $ artCreated a)
     -- p_ . em_ . toHtml $ "Last edited " <> (getTime $ artModified a)
@@ -71,15 +72,15 @@ renderArticle a = div_ [id_ "view-article"] $ do
     div_ [id_ "translate-to"] $ do
       h "Translate to:"
       mapM_ translateLink allLanguages
-  where translationLink :: Language -> Html ()
+  where translationLink :: Language -> TTNView ctx ()
         translationLink l = div_ [class_ "translation-link"] $
                               a_ [href_ $ viewTranslationPath a l] $ toHtml l
-        translateLink :: Language -> Html ()
+        translateLink :: Language -> TTNView ctx ()
         translateLink l = div_ [class_ "translate-link"] $
                             a_ [href_ $ newTranslationPath a l] $ toHtml l
 
 -- | For use in listings
-renderListArticle :: Article Stored -> Html ()
+renderListArticle :: Article Stored -> TTNView ctx ()
 renderListArticle a =
     div_ [class_ "list-elem article"] $ do
       h3_ . a_ [href_ (viewArticlePath a)] . toHtml $ artTitle a
@@ -88,7 +89,7 @@ renderListArticle a =
           h (artPubDate a <> " - " <> artAuthor a <> " - ")
           a_ [href_ $ artURL a] "Original"
 
-renderArticleList :: [Article Stored] -> Html ()
+renderArticleList :: [Article Stored] -> TTNView ctx ()
 renderArticleList as = do
     div_ [id_ "new-article-link"] . a_ [href_ newArticlePath] $ h "Add article"
     mapM_ renderListArticle as
@@ -104,8 +105,8 @@ renderTranslate :: Article Stored
                 -> Language
                 -> Text
                 -> Token
-                -> View (Html ())
-                -> Html ()
+                -> View (TTNView ctx ())
+                -> TTNView ctx ()
 renderTranslate art lang target tok view = pageTemplate .
     div_ [id_ "translation-form"] .  form_ [method_ "post", action_ target] $ do
         DL.errorList "translate" view
@@ -129,7 +130,7 @@ renderTranslate art lang target tok view = pageTemplate .
         submit "Submit translation"
 
 -- | Generate HTML for showing a translation
-renderTranslation :: Article Stored -> Translation -> Html ()
+renderTranslation :: Article Stored -> Translation -> TTNView ctx ()
 renderTranslation a t = do
     p_ . em_ . toHtml $ "Submitted " <> (show $ trCreated t)
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
@@ -149,7 +150,7 @@ mkGTranslateURL source target article_url =
       "&tl=" <> langCode target <> "&ie=UTF-8&u=" <> article_url
 
 -- | Generate hyperlink
-renderGTranslate :: Language -> Language -> Text -> Text -> Html ()
+renderGTranslate :: Language -> Language -> Text -> Text -> TTNView ctx ()
 renderGTranslate from to url label =
     p_ . a_ [href_ (mkGTranslateURL from to url)] $ toHtml label
 
