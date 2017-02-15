@@ -56,22 +56,28 @@ getTime = formatTime defaultTimeLocale "%e %B %Y, %H:%M"
 -- | Generate HTML for showing an Article
 renderArticle :: Article Stored -> TTNView ctx ()
 renderArticle a = div_ [id_ "view-article"] $ do
+    articleHead a
+    div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $ h "Edit article"
+    maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
+    renderBody $ artBody a
+    articleFooter a
+
+articleHead :: Article Stored -> TTNView ctx ()
+articleHead a = do
     -- p_ . em_ . toHtml $ "Submitted " <> (getTime $ artCreated a)
     -- p_ . em_ . toHtml $ "Last edited " <> (getTime $ artModified a)
-    div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $ h "Edit article"
     h2_ . toHtml $ artTitle a
     div_ [class_ "art-time-author"] . em_ $ do
       h $ artPubDate a <> " - " <> artAuthor a <> " - "
       a_ [href_ $ artURL a] $ h "Original"
-    maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
-    renderBody $ artBody a
+
+articleFooter :: Article Stored -> TTNView ctx ()
+articleFooter a = do
     div_ [class_ "user-badge"] . h $ "Contributed by user " <> (pack . show $ artUID a)
-    div_ [id_ "available-translations"] $ do
-      h "Available translations: "
-      mapM_ translationLink $ artAvTrans a
-    div_ [id_ "translate-to"] $ do
-      h "Translate to:"
-      mapM_ translateLink allLanguages
+    div_ [id_ "available-translations"] $ do h "Available translations: "
+                                             mapM_ translationLink $ artAvTrans a
+    div_ [id_ "translate-to"] $ do h "Translate to:"
+                                   mapM_ translateLink allLanguages
   where translationLink :: Language -> TTNView ctx ()
         translationLink l = div_ [class_ "translation-link"] $
                               a_ [href_ $ viewTranslationPath a l] $ toHtml l
@@ -132,7 +138,7 @@ renderTranslate art lang target tok view = pageTemplate .
 -- | Generate HTML for showing a translation
 renderTranslation :: Article Stored -> Translation -> TTNView ctx ()
 renderTranslation a t = do
-    p_ . em_ . toHtml $ "Submitted " <> (show $ trCreated t)
+    p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
     h1_ . toHtml $ trTitle t
     p_ . a_ [href_ $ artURL a] . h $ artTitle a

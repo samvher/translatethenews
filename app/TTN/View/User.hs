@@ -53,12 +53,12 @@ renderProfileBadge u = em_ . toHtml $ uName u
 mustLogin :: TTNView ctx ()
 mustLogin = div_ [id_ "simple-message"] $ do
     h "Sorry, no access! "
-    a_ [href_ loginPath] $ h "Log in first."
+    a_ [href_ loginPath] $ h "Log in"
+    h " first."
 
 loggedIn :: TTNView ctx ()
 loggedIn = div_ [id_ "simple-message"] $ do 
     h "You're already logged in! "
     a_ [href_ logoutPath] $ h "Log out"
     h " if you want to go here."
-
 
