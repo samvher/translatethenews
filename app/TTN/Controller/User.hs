@@ -112,7 +112,5 @@ processLogout = do S.modifySession $ \s -> s { sessUser = Nothing }
 
 getLoggedInUID :: () -> TTNAction ctx (Result Text Int)
 getLoggedInUID _ = do u <- sessUser <$> S.readSession
-                      return $ case u of -- TODO: this is not quite right
-                                 Nothing -> Error "Not logged in"
-                                 Just u' -> Success $ uID u'
+                      maybe (error "Not logged in") (return . Success . uID) u
 
