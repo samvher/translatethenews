@@ -31,23 +31,28 @@ lucid :: TTNView ctx () -> TTNAction ctx a
 lucid v = S.html . toStrict =<< renderTextT v
 
 pageTemplate :: TTNView ctx () -> TTNView ctx ()
-pageTemplate contents = html_ ( htmlHead >> htmlBody contents )
+pageTemplate contents = runTemplate fillBlocks contTemplate
+  where fillBlocks TTNPageTitle = h "This is TTN title"
+        fillBlocks TTNNavBar    = h "Nav bar"
+        fillBlocks TTNContent   = contents
 
-htmlHead :: TTNView ctx ()
+contTemplate :: TTNTemplate ctx
+contTemplate = html_ ( htmlHead >> htmlBody )
+
+htmlHead :: TTNTemplate ctx
 htmlHead = head_ $ do
     title_ "Translate the News"
     link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/reset.css"]
     link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/style.css"]
     let gFonts = "https://fonts.googleapis.com/css?" <>
-          "family=Open+Sans:400,400i|Oswald:300,500&amp;" <>
-          "subset=cyrillic,cyrillic-ext,greek,greek-ext," <>
-          "latin-ext,vietnamese"
+          "family=EB+Garamond|PT+Sans:400,400i,700&amp;" <>
+          "subset=cyrillic,cyrillic-ext,latin-ext"
     link_ [href_ gFonts, rel_ "stylesheet"]
 
-htmlBody :: TTNView ctx () -> TTNView ctx ()
-htmlBody contents = body_ . div_ [id_ "container"] $ do
+htmlBody :: TTNTemplate ctx
+htmlBody = body_ . div_ [id_ "container"] $ do
     div_ [id_ "header"] . h1_ . a_ [href_ "/"] $ "translatethenews.org"
-    div_ [id_ "content-main"] contents
+    div_ [id_ "content-main"] $ getBlock TTNContent
 
 errorPage :: TTNView ctx () -> TTNView ctx ()
 errorPage = pageTemplate . div_ [id_ "simple-message"]

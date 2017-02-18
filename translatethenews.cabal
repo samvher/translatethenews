@@ -45,6 +45,7 @@ executable translatethenews
                      , http-types
                      , hvect
                      , lucid
+                     , mmorph
                      , path-pieces
                      , postgresql-simple
                      , reroute

@@ -8,6 +8,11 @@ module TTN.Model.Core where
 
 import TTN.Model.User
 
+import Control.Monad.Morph                          ( hoist )
+import Control.Monad.Trans.Class                    ( lift )
+import Control.Monad.Trans.Reader                   ( ReaderT(..)
+                                                    , ask
+                                                    , runReaderT )
 import Lucid                                        ( HtmlT )
 
 import qualified Web.Spock as S
@@ -41,5 +46,20 @@ defState = TTNSt ()
 type TTNAction ctx = S.SpockActionCtx ctx Pg.Connection TTNSes TTNSt
 type TTNCfg        = S.SpockCfg           Pg.Connection TTNSes TTNSt
 type TTNMonad  ctx = S.SpockCtxM      ctx Pg.Connection TTNSes TTNSt ()
-type TTNView   ctx = HtmlT (TTNAction ctx)
+
+type TTNView   ctx   = HtmlT (TTNAction ctx)
+type TTNBlockDef ctx = TTNBlock -> TTNView ctx ()
+type TTNTemplate ctx = HtmlT (ReaderT (TTNBlockDef ctx) (TTNAction ctx)) ()
+
+data TTNBlock = TTNPageTitle
+              | TTNNavBar
+              | TTNContent
+
+runTemplate :: TTNBlockDef ctx -> TTNTemplate ctx -> TTNView ctx ()
+runTemplate f = hoist (`runReaderT` f)
+
+getBlock :: TTNBlock -> TTNTemplate ctx
+getBlock blockname = do
+    f <- lift ask
+    hoist lift $ f blockname
 
