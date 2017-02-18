@@ -189,7 +189,7 @@ newTranslation aID lang = do
 viewTranslation :: Int -> Language -> TTNAction ctx a
 viewTranslation aID lang = do
     (art, ts) <- getArtTranslations aID lang
-    renderPage $ mapM_ (renderTranslation art) ts
+    renderPage $ renderTranslation art ts
 
 -- * Redirects
 

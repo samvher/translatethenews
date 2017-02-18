@@ -41,7 +41,7 @@ getCfg connInfo = do
 -- | Serve access denied page
 noAccess :: TTNView ctx () -> TTNAction ctx a
 noAccess msg = do S.setStatus status403
-                  renderPage msg
+                  renderSimpleHtml msg
 
 -- | For working with type-safe authentication
 initHook :: TTNAction () (HVect '[])

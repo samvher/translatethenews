@@ -55,8 +55,8 @@ data TTNBlock = TTNPageTitle
               | TTNNavBar
               | TTNContent
 
-runTemplate :: TTNBlockDef ctx -> TTNTemplate ctx -> TTNView ctx ()
-runTemplate f = hoist (`runReaderT` f)
+runTemplate :: TTNTemplate ctx -> TTNBlockDef ctx -> TTNView ctx ()
+runTemplate template blockDef = hoist (`runReaderT` blockDef) template
 
 getBlock :: TTNBlock -> TTNTemplate ctx
 getBlock blockname = do

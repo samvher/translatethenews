@@ -8,6 +8,8 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.View.Core where
 
+import TTN.Routes
+
 import TTN.Model.Core
 
 import Data.Monoid                      ( (<>) )
@@ -30,18 +32,20 @@ type FormRenderer ctx = Token -> View (TTNView ctx ()) -> TTNView ctx ()
 lucid :: TTNView ctx () -> TTNAction ctx a
 lucid v = S.html . toStrict =<< renderTextT v
 
-pageTemplate :: TTNView ctx () -> TTNView ctx ()
-pageTemplate contents = runTemplate fillBlocks contTemplate
-  where fillBlocks TTNPageTitle = h "This is TTN title"
-        fillBlocks TTNNavBar    = h "Nav bar"
-        fillBlocks TTNContent   = contents
+defaultBlocks :: TTNBlockDef ctx
+defaultBlocks TTNPageTitle = h "Translate the News"
+defaultBlocks TTNNavBar    = h "Nav bar"
+defaultBlocks TTNContent   = return ()
 
-contTemplate :: TTNTemplate ctx
-contTemplate = html_ ( htmlHead >> htmlBody )
+mkPage :: TTNBlockDef ctx -> TTNView ctx ()
+mkPage blockDef = runTemplate pageTemplate blockDef 
+
+pageTemplate :: TTNTemplate ctx
+pageTemplate = html_ ( htmlHead >> htmlBody )
 
 htmlHead :: TTNTemplate ctx
 htmlHead = head_ $ do
-    title_ "Translate the News"
+    title_ $ getBlock TTNPageTitle
     link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/reset.css"]
     link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/style.css"]
     let gFonts = "https://fonts.googleapis.com/css?" <>
@@ -51,20 +55,31 @@ htmlHead = head_ $ do
 
 htmlBody :: TTNTemplate ctx
 htmlBody = body_ . div_ [id_ "container"] $ do
-    div_ [id_ "header"] . h1_ . a_ [href_ "/"] $ "translatethenews.org"
+    div_ [id_ "header"] $ do
+      h1_ . a_ [href_ "/"] $ "translatethenews.org"
+      div_ . a_ [href_ loginPath] $ "log in"
     div_ [id_ "content-main"] $ getBlock TTNContent
 
-errorPage :: TTNView ctx () -> TTNView ctx ()
-errorPage = pageTemplate . div_ [id_ "simple-message"]
+-- errorPage :: TTNView ctx () -> TTNView ctx ()
+-- errorPage = pageTemplate . div_ [id_ "simple-message"]
 
-renderPage :: TTNView ctx () -> TTNAction ctx a
-renderPage = lucid . pageTemplate
+renderPage :: TTNBlockDef ctx -> TTNAction ctx a
+renderPage = lucid . mkPage
 
 renderSimpleStr :: String -> TTNAction ctx a
-renderSimpleStr msg = renderPage . div_ [id_ "simple-message"] $ toHtml msg
+renderSimpleStr msg = renderPage blockDef
+  where blockDef TTNContent = div_ [id_ "simple-message"] $ toHtml msg
+        blockDef other      = defaultBlocks other
+
+renderSimpleHtml :: TTNView ctx () -> TTNAction ctx a
+renderSimpleHtml h = renderPage blockDef
+  where blockDef TTNContent = h
+        blockDef other      = defaultBlocks other
 
 renderSimpleForm :: FormRenderer ctx -> Token -> View Text -> TTNAction ctx a
-renderSimpleForm renderer tok view = lucid . renderer tok $ fmap toHtml view
+renderSimpleForm renderer tok view = renderPage blockDef
+  where blockDef TTNContent = renderer tok $ fmap toHtml view
+        blockDef other      = defaultBlocks other
 
 -- * Functions for generating form views
 

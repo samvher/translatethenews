@@ -35,8 +35,7 @@ renderBody b = mapM_ (p_ . toHtml) $ bodyAsParagraphs b
 
 -- | Generate HTML for new/edit article form
 renderArticleForm :: Text -> Token -> View (TTNView ctx ()) -> TTNView ctx ()
-renderArticleForm target tok view = pageTemplate .
-    div_ [id_ "new-article-form"] $ do 
+renderArticleForm target tok view = div_ [id_ "new-article-form"] $ do 
         h2_ "Article"
         form_ [method_ "post", action_ target] $ do
               DL.errorList "article" view
@@ -54,13 +53,16 @@ getTime :: FormatTime t => t -> String
 getTime = formatTime defaultTimeLocale "%e %B %Y, %H:%M"
 
 -- | Generate HTML for showing an Article
-renderArticle :: Article Stored -> TTNView ctx ()
-renderArticle a = div_ [id_ "view-article"] $ do
-    articleHead a
-    div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $ h "Edit article"
-    maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
-    renderBody $ artBody a
-    articleFooter a
+renderArticle :: Article Stored -> TTNBlockDef ctx
+renderArticle a = blockDef
+  where blockDef TTNContent = div_ [id_ "view-article"] $ do
+            articleHead a
+            div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $
+                h "Edit article"
+            maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
+            renderBody $ artBody a
+            articleFooter a
+        blockDef other      = defaultBlocks other
 
 articleHead :: Article Stored -> TTNView ctx ()
 articleHead a = do
@@ -95,10 +97,12 @@ renderListArticle a =
           h (artPubDate a <> " - " <> artAuthor a <> " - ")
           a_ [href_ $ artURL a] "Original"
 
-renderArticleList :: [Article Stored] -> TTNView ctx ()
-renderArticleList as = do
-    div_ [id_ "new-article-link"] . a_ [href_ newArticlePath] $ h "Add article"
-    mapM_ renderListArticle as
+renderArticleList :: [Article Stored] -> TTNBlockDef ctx
+renderArticleList as = blockDef
+  where blockDef TTNContent = do
+          div_ [id_ "new-article-link"] . a_ [href_ newArticlePath] $ h "Add article"
+          mapM_ renderListArticle as
+        blockDef other      = defaultBlocks other
 
 -- * Translation views
 
@@ -113,8 +117,8 @@ renderTranslate :: Article Stored
                 -> Token
                 -> View (TTNView ctx ())
                 -> TTNView ctx ()
-renderTranslate art lang target tok view = pageTemplate .
-    div_ [id_ "translation-form"] .  form_ [method_ "post", action_ target] $ do
+renderTranslate art lang target tok view =
+    div_ [id_ "translation-form"] . form_ [method_ "post", action_ target] $ do
         DL.errorList "translate" view
         div_ [id_ "gt-link"] $ renderGTranslate (artOrigLang art) lang
                                                 (artURL art)
@@ -136,16 +140,19 @@ renderTranslate art lang target tok view = pageTemplate .
         submit "Submit translation"
 
 -- | Generate HTML for showing a translation
-renderTranslation :: Article Stored -> Translation -> TTNView ctx ()
-renderTranslation a t = do
-    p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
-    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
-    h2_ . toHtml $ trTitle t
-    p_ . a_ [href_ $ artURL a] . h $ artTitle a
-    p_ . a_ [href_ $ viewArticlePath a] $ h "Original (on this site)"
-    renderGTranslate (artOrigLang a) (trLang t) (artURL a) "GT"
-    maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
-    renderBody $ trBody t
+renderTranslation :: Article Stored -> [Translation] -> TTNBlockDef ctx
+renderTranslation a ts = blockDef
+  where renderSingle t = do
+          p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
+          p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
+          h2_ . toHtml $ trTitle t
+          p_ . a_ [href_ $ artURL a] . h $ artTitle a
+          p_ . a_ [href_ $ viewArticlePath a] $ h "Original (on this site)"
+          renderGTranslate (artOrigLang a) (trLang t) (artURL a) "GT"
+          maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
+          renderBody $ trBody t
+        blockDef TTNContent = mapM_ renderSingle ts
+        blockDef other      = defaultBlocks other
 
 -- * Google Translate URLs
 
