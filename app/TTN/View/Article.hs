@@ -140,7 +140,7 @@ renderTranslation :: Article Stored -> Translation -> TTNView ctx ()
 renderTranslation a t = do
     p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
     p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
-    h1_ . toHtml $ trTitle t
+    h2_ . toHtml $ trTitle t
     p_ . a_ [href_ $ artURL a] . h $ artTitle a
     p_ . a_ [href_ $ viewArticlePath a] $ h "Original (on this site)"
     renderGTranslate (artOrigLang a) (trLang t) (artURL a) "GT"
