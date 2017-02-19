@@ -1,0 +1,18 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module TTN.Hidden where
+
+import Data.Text                  ( Text )
+import Database.PostgreSQL.Simple ( ConnectInfo(..)
+                                  , defaultConnectInfo )
+
+ttnConnInfo :: ConnectInfo
+ttnConnInfo = defaultConnectInfo {
+                connectHost = "myhost",
+                connectUser = "myuser",
+                connectPassword = "mypass",
+                connectDatabase = "mydb" }
+
+salt :: Text
+salt = "mysalt"
+

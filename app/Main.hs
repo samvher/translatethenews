@@ -6,7 +6,7 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module Main where
 
-import TTN.ConnInfo                   ( ttnConnInfo )
+import TTN.Hidden                     ( ttnConnInfo )
 import TTN.Routes
 
 import TTN.Controller.Article

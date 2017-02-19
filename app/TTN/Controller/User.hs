@@ -11,6 +11,7 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.Controller.User where
 
+import TTN.Hidden                       ( salt )
 import TTN.Routes
 import TTN.Util                         ( checkNE
                                         , emailP
@@ -24,7 +25,7 @@ import TTN.View.User
 
 import Crypto.Hash.SHA256               ( hash )
 import Data.HVect                       ( HVect(..) )
-import Data.Text                        ( Text, pack )
+import Data.Text                        ( Text, append, pack )
 import Data.Text.Encoding               ( encodeUtf8 )
 import Text.Digestive.Form
 import Text.Digestive.Types
@@ -60,7 +61,7 @@ guestOnlyHook = do oldCtx      <- S.getContext
 
 -- | Use SHA256 and some trivial transformations
 encodePass :: Text -> Text
-encodePass = pack . show . hash . encodeUtf8
+encodePass = pack . show . hash . encodeUtf8 . append salt
 
 -- * Registration
 
@@ -71,7 +72,7 @@ processRegistration :: TTNAction ctx a
 processRegistration =
     serveForm "register" registerForm renderRegisterForm $ \u ->
         do runQuerySafe $ insertUser u
-           renderSimpleStr $ "Success: " ++ show u
+           S.redirect loginPath -- TODO: Add some sort of notification
 
 -- | Registration form
 registerForm :: Form Text (TTNAction ctx) (Text, Text, Text)

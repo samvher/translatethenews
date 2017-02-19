@@ -19,4 +19,4 @@ cabal.sandbox.config
 cabal.project.local
 *.swp
 
-app/TTN/ConnInfo.hs
+app/TTN/Hidden.hs
