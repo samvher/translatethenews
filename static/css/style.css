@@ -14,7 +14,7 @@ body {
 }
 
 #header {
-  width: 360px;
+  width: 320px;
   position: fixed;
   top: 0;
   left: 0;
@@ -25,9 +25,9 @@ body {
 }
 
 h1 {
-  margin: 30px;
-  width: 300px;
-  height: 114px;
+  margin: 20px 30px;
+  width: 250px;
+  height: 100px;
   background: url('/img/ttn_logo.gif');
 }
 
@@ -40,7 +40,7 @@ h1 a:hover {
 }
 
 #content-main {
-  margin-left: 364px;
+  margin-left: 320px;
   padding: 30px 20px;
 }
 
