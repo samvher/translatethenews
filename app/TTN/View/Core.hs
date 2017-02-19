@@ -12,6 +12,7 @@ import TTN.Routes
 
 import TTN.Model.Core
 
+import Control.Monad.Trans.Class        ( lift )
 import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text )
 import Data.Text.Lazy                   ( toStrict )
@@ -23,9 +24,7 @@ import qualified Web.Spock as S
 
 -- * View type aliases
 
-type Token = Text
-
-type FormRenderer ctx = Token -> View (TTNView ctx ()) -> TTNView ctx ()
+type FormRenderer ctx = View (TTNView ctx ()) -> TTNView ctx ()
 
 -- * Higher level layout functions
 
@@ -73,9 +72,9 @@ renderSimpleHtml h = renderPage blockDef
   where blockDef TTNContent = h
         blockDef other      = defaultBlocks other
 
-renderSimpleForm :: FormRenderer ctx -> Token -> View Text -> TTNAction ctx a
-renderSimpleForm renderer tok view = renderPage blockDef
-  where blockDef TTNContent = renderer tok $ fmap toHtml view
+renderSimpleForm :: FormRenderer ctx -> View Text -> TTNAction ctx a
+renderSimpleForm renderer view = renderPage blockDef
+  where blockDef TTNContent = renderer $ fmap toHtml view
         blockDef other      = defaultBlocks other
 
 -- * Functions for generating form views
@@ -105,8 +104,9 @@ inputPass_ = constructView DL.inputPassword
 submit :: Text -> TTNView ctx ()
 submit value = input_ [type_ "submit", value_ value, class_ "input-submit"]
 
-csrf :: Token -> TTNView ctx ()
-csrf tok = input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
+csrf :: TTNView ctx ()
+csrf = do tok <- lift S.getCsrfToken
+          input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 
 -- | Avoid annoying ambiguous types
 h :: Text -> TTNView ctx ()

@@ -21,24 +21,24 @@ import qualified Text.Digestive.Lucid.Html5 as DL
 
 -- * Registration
 
-renderRegisterForm :: Token -> View (TTNView ctx ()) -> TTNView ctx ()
-renderRegisterForm tok view = form_ [method_ "post", action_ "/register"]
+renderRegisterForm :: View (TTNView ctx ()) -> TTNView ctx ()
+renderRegisterForm view = form_ [method_ "post", action_ "/register"]
           (do DL.errorList "register" view
               inputText_ "register.username" "Username" view
               inputText_ "register.email"    "Email"    view
               inputPass_ "register.password" "Password" view
-              csrf tok
+              csrf
               submit "Register")
 
 -- * Login
 
-renderLoginForm :: Token -> View (TTNView ctx ()) -> TTNView ctx ()
-renderLoginForm tok view = div_ [id_ "login-form"] $
+renderLoginForm :: View (TTNView ctx ()) -> TTNView ctx ()
+renderLoginForm view = div_ [id_ "login-form"] $
     form_ [method_ "post", action_ "/login"]
           (do DL.errorList "login" view
               inputText_ "login.username" "Username" view
               inputPass_ "login.password" "Password" view
-              csrf tok
+              csrf
               submit "Log in")
 
 -- * User profile

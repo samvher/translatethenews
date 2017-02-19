@@ -34,8 +34,8 @@ renderBody b = mapM_ (p_ . toHtml) $ bodyAsParagraphs b
 -- * Article views
 
 -- | Generate HTML for new/edit article form
-renderArticleForm :: Text -> Token -> View (TTNView ctx ()) -> TTNView ctx ()
-renderArticleForm target tok view = div_ [id_ "new-article-form"] $ do 
+renderArticleForm :: Text -> View (TTNView ctx ()) -> TTNView ctx ()
+renderArticleForm target view = div_ [id_ "new-article-form"] $ do 
         h2_ "Article"
         form_ [method_ "post", action_ target] $ do
               DL.errorList "article" view
@@ -46,7 +46,7 @@ renderArticleForm target tok view = div_ [id_ "new-article-form"] $ do
               inputText_ "article.language" "Language" view
               inputTextArea_ (Just 5)  (Just 100) "article.summary"  "Summary"  view
               inputTextArea_ (Just 25) (Just 100) "article.body" "Body" view
-              csrf tok
+              csrf
               submit "Submit article"
 
 getTime :: FormatTime t => t -> String
@@ -114,10 +114,9 @@ renderArticleList as = blockDef
 renderTranslate :: Article Stored
                 -> Language
                 -> Text
-                -> Token
                 -> View (TTNView ctx ())
                 -> TTNView ctx ()
-renderTranslate art lang target tok view =
+renderTranslate art lang target view =
     div_ [id_ "translation-form"] . form_ [method_ "post", action_ target] $ do
         DL.errorList "translate" view
         div_ [id_ "gt-link"] $ renderGTranslate (artOrigLang art) lang
@@ -136,7 +135,7 @@ renderTranslate art lang target tok view =
                   DL.label "translation" v (toHtml $ fieldInputText "original" v) 
                   DL.inputTextArea (Just 2) (Just 110) "translation" v
                   DL.errorList "translation" v
-        csrf tok
+        csrf
         submit "Submit translation"
 
 -- | Generate HTML for showing a translation

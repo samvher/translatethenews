@@ -58,10 +58,9 @@ serveForm :: Text
           -> (a -> TTNAction ctx b)
           -> TTNAction ctx b
 serveForm label form renderer successAction = do
-    tok       <- S.getCsrfToken
     (view, l) <- runForm label form
     case l of
-      Nothing -> renderSimpleForm renderer tok view
+      Nothing -> renderSimpleForm renderer view
       Just x  -> successAction x
 
 -- | Safely run a query (showing an error page in case of exceptions).
