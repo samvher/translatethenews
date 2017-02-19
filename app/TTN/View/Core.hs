@@ -63,7 +63,8 @@ loginSegment = do
     maybe (do a_ [href_ loginPath] "log in"
               h " | "
               a_ [href_ registerPath] "register")
-          (\u -> h $ "Welcome " <> uName u)
+          (\u -> do h $ "Welcome "
+                    a_ [href_ profilePath] . h $ uName u)
           currentUser
 
 -- errorPage :: TTNView ctx () -> TTNView ctx ()
