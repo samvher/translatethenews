@@ -10,9 +10,12 @@ module TTN.View.User where
 
 import TTN.Routes
 
+import TTN.Controller.Core
 import TTN.Model.Core
 import TTN.Model.User
 import TTN.View.Core
+
+import Control.Monad.Trans.Class            ( lift )
 
 import Lucid
 import Text.Digestive.View
@@ -44,8 +47,10 @@ renderLoginForm view = div_ [id_ "login-form"] $
 -- * User profile
 
 -- TODO: Flesh out
-renderProfileBadge :: User -> TTNView ctx ()
-renderProfileBadge u = em_ . toHtml $ uName u
+renderProfileBadge :: Int -> TTNView ctx ()
+renderProfileBadge uID = do
+    user <- lift . runQuerySafe $ getUserById uID
+    em_ . toHtml $ show user
 
 -- * Authentication pages
 

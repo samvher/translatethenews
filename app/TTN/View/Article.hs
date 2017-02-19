@@ -13,6 +13,7 @@ import TTN.Routes
 import TTN.Model.Article
 import TTN.Model.Core
 import TTN.View.Core
+import TTN.View.User
 
 import Control.Monad                    ( forM_ )
 import Data.Maybe                       ( fromMaybe )
@@ -75,7 +76,8 @@ articleHead a = do
 
 articleFooter :: Article Stored -> TTNView ctx ()
 articleFooter a = do
-    div_ [class_ "user-badge"] . h $ "Contributed by user " <> (pack . show $ artUID a)
+    div_ [class_ "user-badge"] $ do h "Contributed by user "
+                                    renderProfileBadge $ artUID a
     div_ [id_ "available-translations"] $ do h "Available translations: "
                                              mapM_ translationLink $ artAvTrans a
     div_ [id_ "translate-to"] $ do h "Translate to:"

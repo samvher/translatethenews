@@ -78,7 +78,7 @@ runQuerySafe q = do result <- S.runQuery q'
 hello :: TTNAction ctx a
 hello = renderSimpleStr "Привет, мир!"
 
--- | Get current time (validator for use in forms)
+-- | Get current time (use in validators in forms)
 now :: TTNAction ctx UTCTime
-now = liftIO $ getCurrentTime
+now = liftIO getCurrentTime
 
