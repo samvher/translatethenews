@@ -11,6 +11,7 @@ module TTN.View.Core where
 import TTN.Routes
 
 import TTN.Model.Core
+import TTN.Model.User
 
 import Control.Monad.Trans.Class        ( lift )
 import Data.Monoid                      ( (<>) )
@@ -53,8 +54,17 @@ htmlBody :: TTNTemplate ctx
 htmlBody = body_ . div_ [id_ "container"] $ do
     div_ [id_ "header"] $ do
       h1_ . a_ [href_ "/"] $ "translatethenews.org"
-      div_ . a_ [href_ loginPath] $ "log in"
+      div_ [class_ "nav"] loginSegment
     div_ [id_ "content-main"] $ getBlock TTNContent
+
+loginSegment :: TTNTemplate ctx
+loginSegment = do
+    currentUser <- lift . lift $ sessUser <$> S.readSession
+    maybe (do a_ [href_ loginPath] "log in"
+              h " | "
+              a_ [href_ registerPath] "register")
+          (\u -> h $ "Welcome " <> uName u)
+          currentUser
 
 -- errorPage :: TTNView ctx () -> TTNView ctx ()
 -- errorPage = pageTemplate . div_ [id_ "simple-message"]
@@ -109,6 +119,6 @@ csrf = do tok <- lift S.getCsrfToken
           input_ [name_ "__csrf_token", type_ "hidden", value_ tok]
 
 -- | Avoid annoying ambiguous types
-h :: Text -> TTNView ctx ()
+h :: Monad m => Text -> HtmlT m ()
 h = toHtml
 
