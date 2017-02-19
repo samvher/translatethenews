@@ -88,7 +88,7 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
 newArticle :: TTNAction ctx a
 newArticle = serveForm "article" articleForm renderer gotoViewArticle
   where articleForm = mkArticleForm Nothing
-        renderer = renderArticleForm $ S.renderRoute newArticleR
+        renderer = renderArticleForm newArticlePath
 
 -- | Serve and process edit-Article form
 editArticle :: Int -> TTNAction ctx a

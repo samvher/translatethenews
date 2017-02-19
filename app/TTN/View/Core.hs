@@ -111,6 +111,13 @@ inputTextArea_ r c = constructView $ DL.inputTextArea r c
 inputPass_ :: Text -> Text -> View (TTNView ctx ()) -> TTNView ctx ()
 inputPass_ = constructView DL.inputPassword
 
+inputSelect_ :: Text -> Text -> View (TTNView ctx ()) -> TTNView ctx ()
+inputSelect_ = constructView DL.inputSelect
+
+inputMultiSelect_ :: Text -> Text -> View (TTNView ctx ()) -> TTNView ctx ()
+inputMultiSelect_ = constructView inputMultiSelect
+  where inputMultiSelect r v = with (DL.inputSelect r v) [multiple_ ""]
+
 submit :: Text -> TTNView ctx ()
 submit value = input_ [type_ "submit", value_ value, class_ "input-submit"]
 

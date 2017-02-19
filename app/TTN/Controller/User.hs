@@ -18,6 +18,7 @@ import TTN.Util                         ( checkNE
                                         , testPattern )
 
 import TTN.Controller.Core
+import TTN.Model.Article
 import TTN.Model.Core
 import TTN.Model.User
 import TTN.View.Core
@@ -84,6 +85,34 @@ registerForm = "register" .: checkM nonUniqueMsg uniqueness ( prepUser
         uniqueness (n, e, _) = runQuerySafe $ isUnique (n, e)
         prepUser n e p = (n, e, encodePass p)
 
+-- * User profile
+
+-- TODO: Type-safe authentication, use a notification for successful edit
+-- | Deal with user profile edits, for profile of logged in user
+editProfile :: TTNAction ctx a
+editProfile = do user <- getLoggedInUser
+                 let profileForm   = mkProfileForm user
+                     renderer      = renderProfileForm profilePath
+                     gotoProfile u = do S.modifySession $ \s ->
+                                            s { sessUser = Just u }
+                                        S.redirect profilePath
+                 serveForm "profile" profileForm renderer gotoProfile
+
+mkProfileForm :: User -> Form Text (TTNAction ctx) User
+mkProfileForm user = "profile" .: validateM writeToDb ( mkUser
+    <$> "email"       .: check "Email not valid"
+                               (testPattern emailP)
+                               (text . Just $ uEmail user)
+    <*> "read-langs"  .: choiceMultiple allLangs (Just defReadLangs)
+    <*> "trans-langs" .: choiceMultiple allLangs (Just $ uTransLangs user))
+  where mkUser e r t = user { uEmail      = e
+                            , uReadLangs  = r
+                            , uTransLangs = t }
+        writeToDb u = Success <$> runQuerySafe (updateUser u)
+        allLangs = zip allLanguages $ map (pack . show) allLanguages
+        defReadLangs = let stored = uReadLangs user
+                        in if null stored then [English] else stored
+
 -- * Login/logout
 
 -- | Process and serve login form, register successful login in the
@@ -111,6 +140,13 @@ processLogout = do S.modifySession $ \s -> s { sessUser = Nothing }
 
 -- * Get current user
 
+-- TODO: Use type safe authentication check
+getLoggedInUser :: TTNAction ctx User
+getLoggedInUser = do
+    currentUser <- sessUser <$> S.readSession
+    maybe (renderSimpleStr "Not logged in!") return currentUser
+
+-- TODO: Should not throw an error :S
 -- | Weird formulation because it is used as a Form validator
 getLoggedInUID :: () -> TTNAction ctx (Result Text Int)
 getLoggedInUID _ = do u <- sessUser <$> S.readSession

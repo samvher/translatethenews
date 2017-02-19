@@ -23,13 +23,14 @@ import Web.Spock
 app :: TTNMonad ()
 app = do middleware . staticPolicy $ addBase "static"
          prehook initHook $ do
+             get root . redirect $ renderRoute listArticlesR
              get listArticlesR   listArticles
              get listArticlesInR articlesInLang
-             get root . redirect $ renderRoute loginR
              prehook guestOnlyHook $ do
                  getpost registerR processRegistration
                  getpost loginR    processLogin
              prehook authHook $ do
+                 getpost profileR          editProfile
                  get     logoutR           processLogout
                  getpost newArticleR       newArticle
                  get     viewArticleR      viewArticle

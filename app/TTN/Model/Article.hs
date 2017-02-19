@@ -34,7 +34,7 @@ data Language = English
               | Russian
               | Turkish
               | Indonesian
-                deriving ( Read, Show )
+                deriving ( Eq, Read, Show )
 
 allLanguages :: [Language]
 allLanguages = [ English

@@ -44,15 +44,19 @@ listArticlesR = "articles"
 listArticlesInR :: Path '[Language] Open
 listArticlesInR = "articles" <//> "in" <//> var
 
-loginR, logoutR, registerR :: Path '[] Open
-loginR    = "login"
-logoutR   = "logout"
-registerR = "register"
+loginR, logoutR, registerR, profileR :: Path '[] Open
+loginR     = "login"
+logoutR    = "logout"
+registerR  = "register"
+profileR   = "profile"
 
-newArticlePath, listArticlesPath, loginPath, logoutPath, registerPath :: Text
+newArticlePath, listArticlesPath :: Text
 newArticlePath   = renderRoute newArticleR
 listArticlesPath = renderRoute listArticlesR
+
+loginPath, logoutPath, registerPath, profilePath :: Text
 loginPath        = renderRoute loginR
 logoutPath       = renderRoute logoutR
 registerPath     = renderRoute registerR
+profilePath      = renderRoute profileR
 
