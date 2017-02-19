@@ -37,9 +37,6 @@ defaultBlocks TTNPageTitle = h "Translate the News"
 defaultBlocks TTNNavBar    = h "Nav bar"
 defaultBlocks TTNContent   = return ()
 
-mkPage :: TTNBlockDef ctx -> TTNView ctx ()
-mkPage blockDef = runTemplate pageTemplate blockDef 
-
 pageTemplate :: TTNTemplate ctx
 pageTemplate = html_ ( htmlHead >> htmlBody )
 
@@ -64,7 +61,7 @@ htmlBody = body_ . div_ [id_ "container"] $ do
 -- errorPage = pageTemplate . div_ [id_ "simple-message"]
 
 renderPage :: TTNBlockDef ctx -> TTNAction ctx a
-renderPage = lucid . mkPage
+renderPage blockDef= lucid $ runTemplate pageTemplate blockDef 
 
 renderSimpleStr :: String -> TTNAction ctx a
 renderSimpleStr msg = renderPage blockDef
