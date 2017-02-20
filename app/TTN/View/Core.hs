@@ -53,7 +53,8 @@ htmlHead = head_ $ do
 htmlBody :: TTNTemplate ctx
 htmlBody = body_ . div_ [id_ "container"] $ do
     div_ [id_ "header"] $ do
-      h1_ . a_ [href_ "/"] $ "translatethenews.org"
+      h1_ . a_ [href_ "/"] $ do span_ [class_ "site-title"] "translatethenews.org"
+                                span_ [class_ "site-logo"] ""
       div_ [class_ "nav"] loginSegment
     div_ [id_ "content-main"] $ getBlock TTNContent
 

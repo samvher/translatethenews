@@ -16,12 +16,14 @@ import TTN.Model.User
 import TTN.View.Core
 
 import Control.Monad.Trans.Class            ( lift )
+import Data.Maybe                           ( fromJust )
 import Data.Text                            ( Text )
 
 import Lucid
 import Text.Digestive.View
 
 import qualified Text.Digestive.Lucid.Html5 as DL
+import qualified Web.Spock                  as S
 
 -- * Registration
 
@@ -37,13 +39,16 @@ renderRegisterForm view = form_ [method_ "post", action_ "/register"] $ do
 -- * User profile
 
 renderProfileForm :: Text -> View (TTNView ctx ()) -> TTNView ctx ()
-renderProfileForm target view = form_ [method_ "post", action_ target] $ do
-    DL.errorList "profile" view
-    inputText_ "profile.email" "Email" view
-    inputMultiSelect_ "profile.read-langs" "Languages you would like to read in" view
-    inputMultiSelect_ "profile.trans-langs" "Languages you would like to translate from" view
-    csrf
-    submit "Edit profile"
+renderProfileForm target view = div_ [id_ "edit-profile-form"] $ do
+    currentUName <- lift (uName . fromJust . sessUser <$> S.readSession)
+    h2_ $ h currentUName
+    form_ [method_ "post", action_ target] $ do
+        DL.errorList "profile" view
+        inputText_ "profile.email" "Email" view
+        inputMultiSelect_ "profile.read-langs" "Languages you would like to read in" view
+        inputMultiSelect_ "profile.trans-langs" "Languages you would like to translate from" view
+        csrf
+        submit "Edit profile"
 
 -- * Login
 

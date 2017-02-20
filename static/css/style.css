@@ -28,15 +28,26 @@ h1 {
   margin: 20px 30px;
   width: 250px;
   height: 100px;
-  background: url('/img/ttn_logo.gif');
 }
 
 h1 a {
-  visibility: hidden;
+  width: 250px;
+  height: 100px;
 }
 
-h1 a:hover {
-  text-decoration: none;
+h1 a .site-title {
+  display: none;
+}
+
+h1 a .site-logo {
+  display: block;
+  width: 250px;
+  height: 100px;
+  background: url('/img/ttn_logo.gif');
+}
+
+h1 a:before {
+  visibility: normal;
 }
 
 #content-main {
@@ -133,19 +144,19 @@ p {
   padding: 1.5em 0.6em;
 }
 
-#new-article-form, #translation-form {
+#new-article-form, #translation-form, #edit-profile-form {
   padding: 0.5em 0.6em;
 }
 
-#new-article-form label {
-  display: inline-block;
-  width: 250px;
-  margin-bottom: 0.5em;
+#new-article-form label, #edit-profile-form label {
+  display: block;
+  width: 350px;
+  margin-top: 0.5em;
   line-height: 1.5em;
 }
 
-#new-article-form input {
-  display: inline-block;
+#new-article-form input, #edit-profile-form input {
+  display: block;
   width: 600px;
   font-size: 1em;
 }
@@ -155,10 +166,17 @@ p {
   font-family: 'PT Sans', sans-serif;
 }
 
-#new-article-form .input-submit {
+#new-article-form .input-submit, #edit-profile-form .input-submit {
   margin: 0.8em 0;
   width: 150px;
   font-size: 1.2em;
+}
+
+#edit-profile-form select {
+  clear: left;
+  display: inline-block;
+  font-size: 1em;
+  font-family: 'PT Sans', sans-serif;
 }
 
 #translation-form {
