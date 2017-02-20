@@ -44,7 +44,7 @@ renderArticleForm target view = div_ [id_ "new-article-form"] $ do
               inputText_ "article.title"    "Title"    view
               inputText_ "article.author"   "Author"   view
               inputText_ "article.url"      "URL"      view
-              inputText_ "article.language" "Language" view
+              inputSelect_ "article.language" "Language" view
               inputTextArea_ (Just 5)  (Just 100) "article.summary"  "Summary"  view
               inputTextArea_ (Just 25) (Just 100) "article.body" "Body" view
               csrf

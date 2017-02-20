@@ -26,7 +26,7 @@ import TTN.View.Core
 import Control.Monad                    ( when, (=<<) )
 import Data.Maybe                       ( fromJust, fromMaybe, isNothing )
 import Data.Monoid                      ( (<>) )
-import Data.Text                        ( Text, unpack )
+import Data.Text                        ( Text, pack, unpack )
 import Text.Digestive.Form
 import Text.Digestive.Types
 
@@ -57,7 +57,7 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
                             checkNE
                             (text $ artURL <$> a)
     <*> "summary"  .: validate wrapMaybe (text $ artSummary =<< a)
-    <*> "language" .: validate readLang  (text $ artLangAsText <$> a)
+    <*> "language" .: choice allLangs (artOrigLang <$> a)
     <*> "body"     .: validate validBody (text $ bodyAsText . artBody <$> a)
     <*> "av_trans" .: (pure . fromMaybe [] $ artAvTrans <$> a) 
     <*> "created"  .: validateM valCreated (pure $ artCreated <$> a)
@@ -65,8 +65,7 @@ mkArticleForm a = "article" .: validateM writeToDb ( Article
   where wrapMaybe x = if T.length x > 0
                         then Success $ Just x
                         else Success Nothing
-        readLang x = let x' = maybeRead $ unpack x
-                      in maybe (Error "Language not valid") Success x'
+        allLangs = zip allLanguages $ map (pack . show) allLanguages
         validBody b = if not $ T.null b
                         then Success $ textToBody b
                         else Error "No body supplied"
