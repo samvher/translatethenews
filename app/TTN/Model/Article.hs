@@ -316,7 +316,7 @@ sqlGetTranslationsInLangs =
                    ON t.article_id = a.id
                  WHERE t.trans_lang IN ?
                  ORDER BY a.id, t.created DESC) t
-          ORDER BY t.a_created |]
+          ORDER BY t.a_created DESC |]
 
 getTranslationsInLangs :: [Language]
                        -> Pg.Connection
