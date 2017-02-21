@@ -293,14 +293,16 @@ getArticlesTranslatedToLang lang dbConn =
 
 sqlGetTranslationsInLangs :: Pg.Query
 sqlGetTranslationsInLangs =
-    [sql| SELECT DISTINCT ON (a.id)
-                 t.id, t.article_id, t.contributor_id, t.trans_lang,
+    [sql| SELECT t.id, t.article_id, t.contributor_id, t.trans_lang,
                  t.title, t.summary, t.body, t.created
-          FROM translations AS t
-          INNER JOIN articles AS a
-            ON t.article_id = a.id
-          WHERE t.trans_lang IN ?
-          ORDER BY a.id, t.created DESC |]
+          FROM ( SELECT DISTINCT ON (a.id)
+                        a.created AS a_created, t.*
+                 FROM translations AS t
+                 INNER JOIN articles AS a
+                   ON t.article_id = a.id
+                 WHERE t.trans_lang IN ?
+                 ORDER BY a.id, t.created DESC) t
+          ORDER BY t.a_created |]
 
 getTranslationsInLangs :: [Language]
                        -> Pg.Connection
