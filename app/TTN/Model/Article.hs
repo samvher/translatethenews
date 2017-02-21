@@ -198,7 +198,7 @@ getArticleById aID dbConn = do
     return $ listToMaybe as
 
 sqlListArticles :: Pg.Query
-sqlListArticles = [sql| SELECT * FROM articles |]
+sqlListArticles = [sql| SELECT * FROM articles ORDER BY created DESC |]
 
 getArticleList :: Pg.Connection -> IO [Article Stored]
 getArticleList dbConn = Pg.query dbConn sqlListArticles ()
