@@ -73,8 +73,8 @@ loginSegment = do
                 li_ . a_ [href_ logoutPath] $ h "Log out"
                 li_ . a_ [href_ profilePath] $ h "Edit profile"
             ul_ . div_ [id_ "nav-box"] $ do
-              li_ . a_ [href_ listPrefArticlesPath] $ h "View translations"
-              -- li_ . a_ [href_ listPrefTransPath]    $ h "Translate articles"
+              li_ . a_ [href_ listPrefTranslationsPath] $ h "View translations"
+              li_ . a_ [href_ listPrefArticlesPath]     $ h "Translate articles"
 
 -- errorPage :: TTNView ctx () -> TTNView ctx ()
 -- errorPage = pageTemplate . div_ [id_ "simple-message"]

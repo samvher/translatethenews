@@ -37,10 +37,13 @@ newTranslationPath, viewTranslationPath :: Article Stored -> Language -> Text
 newTranslationPath  a = renderRoute newTranslationR  (artID' a)
 viewTranslationPath a = renderRoute viewTranslationR (artID' a)
 
-listArticlesR, newArticleR, listPrefArticlesR :: Path '[] Open
+listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
+
+listPrefArticlesR, listPrefTranslationsR :: Path '[] Open
 listPrefArticlesR = "articles" <//> "pref"
+listPrefTranslationsR = "articles" <//> "translations" <//> "pref"
 
 listArticlesInR :: Path '[Language] Open
 listArticlesInR = "articles" <//> "in" <//> var
@@ -51,10 +54,13 @@ logoutR    = "logout"
 registerR  = "register"
 profileR   = "profile"
 
-newArticlePath, listArticlesPath, listPrefArticlesPath :: Text
+newArticlePath, listArticlesPath :: Text
 newArticlePath   = renderRoute newArticleR
 listArticlesPath = renderRoute listArticlesR
+
+listPrefArticlesPath, listPrefTranslationsPath :: Text
 listPrefArticlesPath = renderRoute listPrefArticlesR
+listPrefTranslationsPath = renderRoute listPrefTranslationsR
 
 loginPath, logoutPath, registerPath, profilePath :: Text
 loginPath        = renderRoute loginR

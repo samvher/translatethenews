@@ -120,6 +120,15 @@ articlesInLang :: Language -> TTNAction ctx a
 articlesInLang l = renderPage . renderArticleList =<<
                        runQuerySafe (getArticlesTranslatedToLang l)
 
+-- TODO: Confusing naming with function above (which might not be
+-- necessary)
+listArticlesInLangs :: TTNAction ctx a
+listArticlesInLangs = do
+    Just u <- sessUser <$> S.readSession  -- TODO: no Just
+    let langs = uTransLangs u
+    as     <- runQuerySafe $ getArticlesInLangs langs
+    renderPage $ renderArticleList as
+
 -- * Translation
 
 -- | Form for new translations. The supplied Article is the one we are

@@ -30,15 +30,16 @@ app = do middleware . staticPolicy $ addBase "static"
                  getpost registerR processRegistration
                  getpost loginR    processLogin
              prehook authHook $ do
-                 get     listPrefArticlesR listTranslationsInLangs
-                 getpost profileR          editProfile
-                 get     logoutR           processLogout
-                 getpost newArticleR       newArticle
-                 get     viewArticleR      viewArticle
+                 get     listPrefTranslationsR listTranslationsInLangs
+                 get     listPrefArticlesR     listArticlesInLangs
+                 getpost profileR              editProfile
+                 get     logoutR               processLogout
+                 getpost newArticleR           newArticle
+                 get     viewArticleR          viewArticle
                  -- TODO: Maybe this should be disabled?
-                 getpost editArticleR      editArticle
-                 getpost newTranslationR   newTranslation
-                 get     viewTranslationR  viewTranslation
+                 getpost editArticleR          editArticle
+                 getpost newTranslationR       newTranslation
+                 get     viewTranslationR      viewTranslation
 
 -- | Configures and runs the Spock server
 main :: IO ()
