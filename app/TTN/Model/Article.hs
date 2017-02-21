@@ -262,7 +262,9 @@ sqlGetTranslations :: Pg.Query
 sqlGetTranslations = [sql| SELECT id, article_id, contributor_id, trans_lang,
                                   title, summary, body, created
                            FROM translations
-                           WHERE article_id = ? AND trans_lang = ? |]
+                           WHERE article_id = ? AND trans_lang = ?
+                           ORDER BY created DESC
+                           LIMIT 1 |]
 
 getTranslations :: Int -> Language -> Pg.Connection -> IO [Translation]
 getTranslations aID lang dbConn = Pg.query dbConn sqlGetTranslations (aID, lang)
