@@ -259,8 +259,10 @@ insertTranslation tr dbConn = do [t] <- Pg.query dbConn sqlAddTranslation tr
                                  return t
 
 sqlGetTranslations :: Pg.Query
-sqlGetTranslations = [sql| SELECT * FROM translations
-                             WHERE article_id = ? AND trans_lang = ? |]
+sqlGetTranslations = [sql| SELECT id, article_id, contributor_id, trans_lang
+                                  title, summary, body, created
+                           FROM translations
+                           WHERE article_id = ? AND trans_lang = ? |]
 
 getTranslations :: Int -> Language -> Pg.Connection -> IO [Translation]
 getTranslations aID lang dbConn = Pg.query dbConn sqlGetTranslations (aID, lang)
@@ -276,7 +278,9 @@ getTransLangs aID dbConn = do
 
 sqlGetArticlesTranslatedToLang :: Pg.Query
 sqlGetArticlesTranslatedToLang =
-    [sql| SELECT DISTINCT a.*
+    [sql| SELECT DISTINCT a.id, a.contributor_id, a.pub_date, a.title, a.author,
+                          a.url, a.summary, a.orig_lang, a.body, a.av_trans,
+                          a.created, a.modified
           FROM translations AS t
           INNER JOIN articles AS a
             ON t.article_id = a.id
@@ -286,6 +290,21 @@ sqlGetArticlesTranslatedToLang =
 getArticlesTranslatedToLang :: Language -> Pg.Connection -> IO [Article Stored]
 getArticlesTranslatedToLang lang dbConn =
     Pg.query dbConn sqlGetArticlesTranslatedToLang $ Pg.Only lang
+
+sqlGetTranslationsInLangs :: Pg.Query
+sqlGetTranslationsInLangs =
+    [sql| SELECT t.id, t.article_id, t.contributor_id, t.trans_lang,
+                 t.title, t.summary, t.body, t.created
+          FROM translations AS t
+          INNER JOIN articles AS a
+            ON t.article_id = a.id
+          WHERE t.trans_lang IN ? |]
+
+getTranslationsInLangs :: [Language]
+                       -> Pg.Connection
+                       -> IO [Translation]
+getTranslationsInLangs langs dbConn =
+    Pg.query dbConn sqlGetTranslationsInLangs $ Pg.Only (Pg.In langs)
 
 -- * Body transformations
 

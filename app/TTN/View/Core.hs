@@ -61,12 +61,20 @@ htmlBody = body_ . div_ [id_ "container"] $ do
 loginSegment :: TTNTemplate ctx
 loginSegment = do
     currentUser <- lift . lift $ sessUser <$> S.readSession
-    maybe (do a_ [href_ loginPath] "log in"
-              h " | "
-              a_ [href_ registerPath] "register")
-          (\u -> do h $ "Welcome "
-                    a_ [href_ profilePath] . h $ uName u)
-          currentUser
+    maybe notLoggedInBox loggedInBox currentUser
+  where notLoggedInBox = ul_ [id_ "login-box"] . li_ $ do
+                             a_ [href_ loginPath] "Log in"
+                             h " or "
+                             a_ [href_ registerPath] "register"
+        loggedInBox :: User -> TTNTemplate ctx
+        loggedInBox u = do
+            ul_ [id_ "login-box"] $ do
+                li_ . h $ "Logged in as " <> uName u <> "."
+                li_ . a_ [href_ logoutPath] $ h "Log out"
+                li_ . a_ [href_ profilePath] $ h "Edit profile"
+            ul_ . div_ [id_ "nav-box"] $ do
+              li_ . a_ [href_ listPrefArticlesPath] $ h "View translations"
+              -- li_ . a_ [href_ listPrefTransPath]    $ h "Translate articles"
 
 -- errorPage :: TTNView ctx () -> TTNView ctx ()
 -- errorPage = pageTemplate . div_ [id_ "simple-message"]

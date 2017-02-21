@@ -10,12 +10,14 @@ module TTN.View.Article where
 
 import TTN.Routes
 
+import TTN.Controller.Core -- TODO: this shouldn't be here
 import TTN.Model.Article
 import TTN.Model.Core
 import TTN.View.Core
 import TTN.View.User
 
 import Control.Monad                    ( forM_ )
+import Control.Monad.Trans.Class        ( lift )
 import Data.Maybe                       ( fromMaybe )
 import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text, pack )
@@ -143,18 +145,31 @@ renderTranslate art lang target view =
 -- | Generate HTML for showing a translation
 renderTranslation :: Article Stored -> [Translation] -> TTNBlockDef ctx
 renderTranslation a ts = blockDef
-  where renderSingle t = do
-          p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
-          p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
-          h2_ . toHtml $ trTitle t
-          p_ . a_ [href_ $ artURL a] . h $ artTitle a
-          p_ . a_ [href_ $ viewArticlePath a] $ h "Original (on this site)"
-          renderGTranslate (artOrigLang a) (trLang t) (artURL a) "GT"
-          maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
-          renderBody $ trBody t
-        blockDef TTNContent = mapM_ renderSingle ts
+  where blockDef TTNContent = mapM_ (renderSingleTrans a) ts
         blockDef other      = defaultBlocks other
 
+-- TODO: This is not quite right here
+renderSingleTrans :: Article Stored -> Translation -> TTNView ctx ()
+renderSingleTrans a t = do
+    p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
+    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
+    h2_ . toHtml $ trTitle t
+    p_ . a_ [href_ $ artURL a] . h $ artTitle a
+    p_ . a_ [href_ $ viewArticlePath a] $ h "Original (on this site)"
+    renderGTranslate (artOrigLang a) (trLang t) (artURL a) "GT"
+    maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
+    renderBody $ trBody t
+
+renderTrans :: [Translation] -> TTNBlockDef ctx
+renderTrans ts = blockDef
+  where renderSingle t = do
+          a' <- lift $ runQuerySafe (getArticleById $ trAID t)
+          a <- maybe (lift $ renderSimpleStr "Something strange happened!") -- TODO: set right
+                     return a'
+          renderSingleTrans a t
+        blockDef TTNContent = mapM_ renderSingle ts
+        blockDef other      = defaultBlocks other
+          
 -- * Google Translate URLs
 
 -- | Generate URL for Google Translate version

@@ -190,6 +190,13 @@ viewTranslation aID lang = do
     (art, ts) <- getArtTranslations aID lang
     renderPage $ renderTranslation art ts
 
+listTranslationsInLangs :: TTNAction ctx a
+listTranslationsInLangs = do
+    Just u <- sessUser <$> S.readSession  -- TODO: no Just
+    let langs = uReadLangs u
+    ts     <- runQuerySafe $ getTranslationsInLangs langs
+    renderPage $ renderTrans ts
+
 -- * Redirects
 
 -- | Redirect to the view page for this article

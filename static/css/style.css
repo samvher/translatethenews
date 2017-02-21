@@ -14,7 +14,8 @@ body {
 }
 
 #header {
-  width: 320px;
+  width: 260px;
+  padding: 0 30px;
   position: fixed;
   top: 0;
   left: 0;
@@ -25,7 +26,7 @@ body {
 }
 
 h1 {
-  margin: 20px 30px;
+  margin: 20px 0 50px 0;
   width: 250px;
   height: 100px;
 }
@@ -257,5 +258,19 @@ em {
 }
 
 strong {
+  font-weight: bold;
+}
+
+#login-box, #nav-box {
+  width: 100%;
+  margin-bottom: 30px;
+}
+
+#login-box li, #nav-box li {
+  width: 100%;
+  text-align: right;
+  font-family: 'PT Sans', serif;
+  font-size: 1.1em;
+  line-height: 1.5em;
   font-weight: bold;
 }

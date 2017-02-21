@@ -30,6 +30,7 @@ app = do middleware . staticPolicy $ addBase "static"
                  getpost registerR processRegistration
                  getpost loginR    processLogin
              prehook authHook $ do
+                 get     listPrefArticlesR listTranslationsInLangs
                  getpost profileR          editProfile
                  get     logoutR           processLogout
                  getpost newArticleR       newArticle
