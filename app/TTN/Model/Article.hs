@@ -259,7 +259,7 @@ insertTranslation tr dbConn = do [t] <- Pg.query dbConn sqlAddTranslation tr
                                  return t
 
 sqlGetTranslations :: Pg.Query
-sqlGetTranslations = [sql| SELECT id, article_id, contributor_id, trans_lang
+sqlGetTranslations = [sql| SELECT id, article_id, contributor_id, trans_lang,
                                   title, summary, body, created
                            FROM translations
                            WHERE article_id = ? AND trans_lang = ? |]
@@ -293,12 +293,14 @@ getArticlesTranslatedToLang lang dbConn =
 
 sqlGetTranslationsInLangs :: Pg.Query
 sqlGetTranslationsInLangs =
-    [sql| SELECT t.id, t.article_id, t.contributor_id, t.trans_lang,
+    [sql| SELECT DISTINCT ON (a.id)
+                 t.id, t.article_id, t.contributor_id, t.trans_lang,
                  t.title, t.summary, t.body, t.created
           FROM translations AS t
           INNER JOIN articles AS a
             ON t.article_id = a.id
-          WHERE t.trans_lang IN ? |]
+          WHERE t.trans_lang IN ?
+          ORDER BY a.id, t.created DESC |]
 
 getTranslationsInLangs :: [Language]
                        -> Pg.Connection
