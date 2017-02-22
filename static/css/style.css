@@ -44,7 +44,8 @@ h1 a .site-logo {
   display: block;
   width: 250px;
   height: 100px;
-  background: url('/img/ttn_logo.gif');
+  background: url('/img/ttn_logo_hr.gif');
+  background-size: 250px 100px;
 }
 
 h1 a:before {
