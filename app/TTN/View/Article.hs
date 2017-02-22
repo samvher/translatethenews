@@ -10,7 +10,7 @@ module TTN.View.Article where
 
 import TTN.Routes
 
-import TTN.Controller.Core -- TODO: this shouldn't be here
+import TTN.Controller.Shared
 import TTN.Model.Article
 import TTN.Model.Core
 import TTN.View.Core

@@ -10,7 +10,7 @@ module TTN.View.User where
 
 import TTN.Routes
 
-import TTN.Controller.Core
+import TTN.Controller.Shared
 import TTN.Model.Core
 import TTN.Model.User
 import TTN.View.Core

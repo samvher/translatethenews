@@ -17,7 +17,7 @@ import TTN.Util                         ( checkNE
                                         , emailP
                                         , testPattern )
 
-import TTN.Controller.Core
+import TTN.Controller.Shared
 import TTN.Model.Article
 import TTN.Model.Core
 import TTN.Model.User

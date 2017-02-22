@@ -15,7 +15,7 @@ import TTN.Util                         ( checkNE
                                         , testPattern )
 import TTN.Routes
 
-import TTN.Controller.Core
+import TTN.Controller.Shared
 import TTN.Controller.User
 import TTN.Model.Article
 import TTN.Model.Core
