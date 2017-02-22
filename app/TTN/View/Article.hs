@@ -75,7 +75,7 @@ articleHead a = do
     h2_ . toHtml $ artTitle a
     div_ [class_ "art-time-author"] . em_ $ do
       h $ artPubDate a <> " - " <> artAuthor a <> " - "
-      a_ [href_ $ artURL a] $ h "Original"
+      a_ [href_ $ artURL a, target_ "_blank"] $ h "Original"
 
 articleFooter :: Article Stored -> TTNView ctx ()
 articleFooter a = do
@@ -100,7 +100,7 @@ renderListArticle a =
       p_ [class_ "list-article-summary"] . h . fromMaybe "" $ artSummary a
       div_ [class_ "article-meta"] . em_ $ do
           h (artPubDate a <> " - " <> artAuthor a <> " - ")
-          a_ [href_ $ artURL a] "Original"
+          a_ [href_ $ artURL a, target_ "_blank"] "Original"
 
 renderArticleList :: [Article Stored] -> TTNBlockDef ctx
 renderArticleList as = blockDef
