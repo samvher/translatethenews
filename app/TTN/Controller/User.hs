@@ -146,9 +146,10 @@ getLoggedInUser = do
     currentUser <- sessUser <$> S.readSession
     maybe (renderSimpleStr "Not logged in!") return currentUser
 
--- TODO: Should not throw an error :S
 -- | Weird formulation because it is used as a Form validator
 getLoggedInUID :: () -> TTNAction ctx (Result Text Int)
 getLoggedInUID _ = do u <- sessUser <$> S.readSession
-                      maybe (error "Not logged in") (return . Success . uID) u
+                      maybe (renderSimpleStr "Not logged in")
+                            (return . Success . uID)
+                            u
 
