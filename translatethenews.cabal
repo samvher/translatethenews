@@ -22,7 +22,7 @@ library
 executable translatethenews
   hs-source-dirs:      app
   main-is:             Main.hs
-  other-modules:       TTN.ConnInfo
+  other-modules:       TTN.Hidden
                      , TTN.Routes
                      , TTN.Util
                      , TTN.Controller.Article
