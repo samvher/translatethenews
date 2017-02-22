@@ -6,5 +6,5 @@ CREATE TABLE translations (
   , title            text not null
   , summary          text
   , body             text not null
-  , created          timestamp with timezone
+  , created          timestamp with time zone
 );
