@@ -3,9 +3,9 @@ Code for translatethenews.org.
 
 ## Installation steps
 1. Make sure all necessary dependencies are available:
-* PostgreSQL
-* curl
-* zlib
+ * PostgreSQL
+ * curl
+ * zlib
 2. In PostgreSQL:
 `CREATE ROLE <username> SUPERUSER LOGIN;`
 `ALTER USER <username> WITH PASSWORD <password>;`
