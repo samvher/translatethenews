@@ -36,8 +36,9 @@ app = do middleware . staticPolicy $ addBase "static"
                  get     logoutR               processLogout
                  getpost newArticleR           newArticle
                  get     viewArticleR          viewArticle
-                 -- TODO: Maybe this should be disabled?
-                 getpost editArticleR          editArticle
+                 -- Disabling this for now, we don't really want articles
+                 -- to be edited, especially if there are translations.
+                 -- getpost editArticleR          editArticle
                  getpost newTranslationR       newTranslation
                  get     viewTranslationR      viewTranslation
 
