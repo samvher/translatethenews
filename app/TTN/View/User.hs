@@ -13,7 +13,7 @@ import TTN.Routes
 import TTN.Controller.Shared
 import TTN.Model.Core
 import TTN.Model.User
-import TTN.View.Core
+import TTN.View.Shared
 
 import Control.Monad.Trans.Class            ( lift )
 import Data.Maybe                           ( fromJust )

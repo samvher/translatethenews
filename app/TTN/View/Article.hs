@@ -13,7 +13,8 @@ import TTN.Routes
 import TTN.Controller.Shared
 import TTN.Model.Article
 import TTN.Model.Core
-import TTN.View.Core
+import TTN.View.Core                    ( renderSimpleStr ) -- TODO: This should go
+import TTN.View.Shared
 import TTN.View.User
 
 import Control.Monad                    ( forM_ )

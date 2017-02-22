@@ -11,6 +11,7 @@ module TTN.Controller.Shared where
 
 import TTN.Model.Core
 import TTN.View.Core
+import TTN.View.Shared
 
 import Control.Exception                ( SomeException, try )
 import Control.Monad.IO.Class           ( liftIO )
