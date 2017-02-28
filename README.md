@@ -1,5 +1,5 @@
 # translatethenews
-Code for translatethenews.org.
+Code for translatethe.news.
 
 ## Installation steps
 1. Make sure all necessary dependencies are available:

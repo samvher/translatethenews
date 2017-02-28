@@ -32,8 +32,7 @@ noAccess msg = do S.setStatus status403
 -- | Takes an internal label for a form, digestive-functors form
 --   description, a renderer for turning the view into HTML (see the
 --   FormRenderer type alias in TTN.View.Core), and an action to perform on
---   the output of the form after successfully processing it. Takes out
---   some of the pain of working with CSRF tokens.
+--   the output of the form after successfully processing it.
 serveForm :: Text
           -> Form Text (TTNAction ctx) a
           -> FormRenderer ctx
