@@ -25,13 +25,14 @@ app :: TTNMonad ()
 app = do middleware . staticPolicy $ addBase "static"
          prehook initHook $ do
              get root              $ listTranslationsIn English
-             get listArticlesR       listArticles
-             get listArticlesInR     articlesInLang
              get listTranslationsInR listTranslationsIn
+             get viewTranslationR    viewTranslation
              prehook guestOnlyHook $ do
                  getpost registerR processRegistration
                  getpost loginR    processLogin
              prehook authHook $ do
+                 get     listArticlesR         listArticles
+                 get     listArticlesInR       articlesInLang
                  get     listPrefTranslationsR listPrefTranslations
                  get     listPrefArticlesR     listArticlesInLangs
                  getpost profileR              editProfile
@@ -42,7 +43,6 @@ app = do middleware . staticPolicy $ addBase "static"
                  -- to be edited, especially if there are translations.
                  -- getpost editArticleR          editArticle
                  getpost newTranslationR       newTranslation
-                 get     viewTranslationR      viewTranslation
 
 -- | Configures and runs the Spock server
 main :: IO ()
