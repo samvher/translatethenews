@@ -42,11 +42,12 @@ newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
 
 listPrefArticlesR, listPrefTranslationsR :: Path '[] Open
-listPrefArticlesR = "articles" <//> "pref"
+listPrefArticlesR     = "articles" <//> "pref"
 listPrefTranslationsR = "articles" <//> "translations" <//> "pref"
 
-listArticlesInR :: Path '[Language] Open
-listArticlesInR = "articles" <//> "in" <//> var
+listArticlesInR, listTranslationsInR :: Path '[Language] Open
+listArticlesInR     = "articles" <//> "in" <//> var
+listTranslationsInR = "articles" <//> "translatedto" <//> var
 
 loginR, logoutR, registerR, profileR :: Path '[] Open
 loginR     = "login"
@@ -59,8 +60,12 @@ newArticlePath   = renderRoute newArticleR
 listArticlesPath = renderRoute listArticlesR
 
 listPrefArticlesPath, listPrefTranslationsPath :: Text
-listPrefArticlesPath = renderRoute listPrefArticlesR
+listPrefArticlesPath     = renderRoute listPrefArticlesR
 listPrefTranslationsPath = renderRoute listPrefTranslationsR
+
+listArticlesInPath, listTranslationsInPath :: Language -> Text
+listArticlesInPath     = renderRoute listArticlesInR
+listTranslationsInPath = renderRoute listTranslationsInR
 
 loginPath, logoutPath, registerPath, profilePath :: Text
 loginPath        = renderRoute loginR

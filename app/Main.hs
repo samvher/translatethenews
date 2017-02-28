@@ -12,6 +12,7 @@ import TTN.Routes
 import TTN.Controller.Article
 import TTN.Controller.Core
 import TTN.Controller.User
+import TTN.Model.Article              ( Language(..) )
 import TTN.Model.Core
 
 import Network.Wai.Middleware.Static  ( staticPolicy, addBase )
@@ -23,14 +24,15 @@ import Web.Spock
 app :: TTNMonad ()
 app = do middleware . staticPolicy $ addBase "static"
          prehook initHook $ do
-             get root . redirect $ renderRoute listArticlesR
-             get listArticlesR   listArticles
-             get listArticlesInR articlesInLang
+             get root . redirect $ listTranslationsInPath English
+             get listArticlesR       listArticles
+             get listArticlesInR     articlesInLang
+             get listTranslationsInR listTranslationsIn
              prehook guestOnlyHook $ do
                  getpost registerR processRegistration
                  getpost loginR    processLogin
              prehook authHook $ do
-                 get     listPrefTranslationsR listTranslationsInLangs
+                 get     listPrefTranslationsR listPrefTranslations
                  get     listPrefArticlesR     listArticlesInLangs
                  getpost profileR              editProfile
                  get     logoutR               processLogout
