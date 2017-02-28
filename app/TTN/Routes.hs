@@ -21,7 +21,7 @@ import Web.Spock                 ( renderRoute
 
 -- | Argument is article id
 viewArticleR, editArticleR :: Path '[Int] Open
-viewArticleR      = "articles" <//> var <//> "view"
+viewArticleR      = "articles" <//> var
 editArticleR      = "articles" <//> var <//> "edit"
 
 viewArticlePath, editArticlePath :: Article Stored -> Text
