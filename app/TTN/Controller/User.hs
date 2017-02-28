@@ -120,7 +120,7 @@ mkProfileForm user = "profile" .: validateM writeToDb ( mkUser
 processLogin :: TTNAction ctx a
 processLogin = serveForm "login" loginForm renderLoginForm $ \u ->
                  do S.modifySession ( \s -> s { sessUser = Just u } )
-                    S.redirect $ S.renderRoute listArticlesR
+                    S.redirect rootPath
 
 -- | Login form
 loginForm :: Form Text (TTNAction ctx) User

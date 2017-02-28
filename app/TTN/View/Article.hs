@@ -152,14 +152,30 @@ renderTranslation a ts = blockDef
 -- TODO: This is not quite right here
 renderSingleTrans :: Article Stored -> Translation -> TTNView ctx ()
 renderSingleTrans a t = do
-    p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
-    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
+    -- p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
     h2_ . toHtml $ trTitle t
-    p_ . a_ [href_ $ artURL a] . h $ artTitle a
-    p_ . a_ [href_ $ viewArticlePath a] $ h "Original (on this site)"
-    renderGTranslate (artOrigLang a) (trLang t) (artURL a) "GT"
+    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
+    p_ . a_ [href_ $ artURL a] . h $ "Original: " <> artTitle a
+    -- p_ . 
+    -- 
     maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
     renderBody $ trBody t
+    div_ [class_ "user-badge"] $ do h "Contributed by "
+                                    renderProfileBadge $ trUID t
+    div_ [id_ "original-link"] $ renderGTranslate (artOrigLang a)
+                                                  (trLang t)
+                                                  (artURL a)
+                                                  "View on Google Translate"
+
+-- | For use in listings
+renderListTrans :: Article Stored -> Translation -> TTNView ctx ()
+renderListTrans a t =
+    div_ [class_ "list-elem translation"] $ do
+      h3_ . a_ [href_ (viewTranslationPath a (trLang t))] . toHtml $ trTitle t
+      p_ [class_ "list-translation-summary"] . h . fromMaybe "" $ trSummary t
+      div_ [class_ "translation-meta"] . em_ $ do
+          h (artPubDate a <> " - " <> artAuthor a <> " - ")
+          a_ [href_ $ artURL a, target_ "_blank"] "Original"
 
 renderTrans :: [Translation] -> TTNBlockDef ctx
 renderTrans ts = blockDef
@@ -167,8 +183,10 @@ renderTrans ts = blockDef
           a' <- lift $ runQuerySafe (getArticleById $ trAID t)
           a <- maybe (lift $ renderSimpleStr "Something strange happened!") -- TODO: set right
                      return a'
-          renderSingleTrans a t
-        blockDef TTNContent = mapM_ renderSingle ts
+          renderListTrans a t
+        blockDef TTNContent = if null ts
+                                then p_ $ h "No translations found... Contribute!"
+                                else mapM_ renderSingle ts
         blockDef other      = defaultBlocks other
           
 -- * Google Translate URLs
@@ -182,5 +200,5 @@ mkGTranslateURL source target article_url =
 -- | Generate hyperlink
 renderGTranslate :: Language -> Language -> Text -> Text -> TTNView ctx ()
 renderGTranslate from to url label =
-    p_ . a_ [href_ (mkGTranslateURL from to url)] $ toHtml label
+    a_ [href_ (mkGTranslateURL from to url)] $ toHtml label
 

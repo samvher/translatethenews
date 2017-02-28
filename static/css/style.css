@@ -67,12 +67,12 @@ h1 a:before {
   font-weight: bold;
 }
 
-.list-elem.article {
+.list-elem.article, .list-elem.translation {
   border-top: 1px solid #598234;
   padding: 0.6em;
 }
 
-p.list-article-summary {
+p.list-article-summary, p.list-translation-summary {
   margin: 0 0 0.5em 0;
   font-size: 1.1em;
 }
@@ -91,7 +91,7 @@ p.list-article-summary {
   text-align: right;
 }
 
-#available-translations {
+#available-translations, #original-link {
   border-top: 1px solid #505160;
   margin: 1.2em 0 0 0;
   padding: 0.5em 0 0 0;

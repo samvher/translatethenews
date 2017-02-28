@@ -17,6 +17,7 @@ import Web.Routing.Combinators   ( Path(..)
                                  , PathState(..)
                                  , var )
 import Web.Spock                 ( renderRoute
+                                 , root
                                  , (<//>) )
 
 -- | Argument is article id
@@ -67,9 +68,10 @@ listArticlesInPath, listTranslationsInPath :: Language -> Text
 listArticlesInPath     = renderRoute listArticlesInR
 listTranslationsInPath = renderRoute listTranslationsInR
 
-loginPath, logoutPath, registerPath, profilePath :: Text
+loginPath, logoutPath, registerPath, profilePath, rootPath :: Text
 loginPath        = renderRoute loginR
 logoutPath       = renderRoute logoutR
 registerPath     = renderRoute registerR
 profilePath      = renderRoute profileR
+rootPath         = renderRoute root
 
