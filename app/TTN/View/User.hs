@@ -28,13 +28,14 @@ import qualified Web.Spock                  as S
 -- * Registration
 
 renderRegisterForm :: View (TTNView ctx ()) -> TTNView ctx ()
-renderRegisterForm view = form_ [method_ "post", action_ "/register"] $ do
-    DL.errorList "register" view
-    inputText_ "register.username" "Username" view
-    inputText_ "register.email"    "Email"    view
-    inputPass_ "register.password" "Password" view
-    csrf
-    submit "Register"
+renderRegisterForm view = div_ [id_ "register-form"] .
+    form_ [method_ "post", action_ "/register"] $ do
+        DL.errorList "register" view
+        inputText_ "register.username" "Username" view
+        inputText_ "register.email"    "Email"    view
+        inputPass_ "register.password" "Password" view
+        csrf
+        submit "Register"
 
 -- * User profile
 
@@ -53,13 +54,13 @@ renderProfileForm target view = div_ [id_ "edit-profile-form"] $ do
 -- * Login
 
 renderLoginForm :: View (TTNView ctx ()) -> TTNView ctx ()
-renderLoginForm view = div_ [id_ "login-form"] $
-    form_ [method_ "post", action_ "/login"]
-          (do DL.errorList "login" view
-              inputText_ "login.username" "Username" view
-              inputPass_ "login.password" "Password" view
-              csrf
-              submit "Log in")
+renderLoginForm view = div_ [id_ "login-form"] .
+    form_ [method_ "post", action_ "/login"] $ do
+        DL.errorList "login" view
+        inputText_ "login.username" "Username" view
+        inputPass_ "login.password" "Password" view
+        csrf
+        submit "Log in"
 
 -- * User profile
 
