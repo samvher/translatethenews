@@ -79,7 +79,7 @@ articleHead a = do
 
 articleFooter :: Article Stored -> TTNView ctx ()
 articleFooter a = do
-    div_ [class_ "user-badge"] $ do h "Contributed by user "
+    div_ [class_ "user-badge"] $ do h "Contributed by "
                                     renderProfileBadge $ artUID a
     div_ [id_ "available-translations"] $ do h "Available translations: "
                                              mapM_ translationLink $ artAvTrans a

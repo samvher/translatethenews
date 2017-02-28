@@ -67,7 +67,7 @@ renderLoginForm view = div_ [id_ "login-form"] $
 renderProfileBadge :: Int -> TTNView ctx ()
 renderProfileBadge uID = do
     user <- lift . runQuerySafe $ getUserById uID
-    em_ . toHtml $ show user
+    em_ . toHtml $ maybe "(unknown)" uName user
 
 -- * Authentication pages
 
