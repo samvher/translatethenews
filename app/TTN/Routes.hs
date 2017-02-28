@@ -42,18 +42,18 @@ newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
 
 listPrefArticlesR, listPrefTranslationsR :: Path '[] Open
-listPrefArticlesR     = "articles" <//> "pref"
-listPrefTranslationsR = "articles" <//> "translations" <//> "pref"
+listPrefArticlesR     = "articles"     <//> "favorite"
+listPrefTranslationsR = "translations" <//> "favorite"
 
 listArticlesInR, listTranslationsInR :: Path '[Language] Open
-listArticlesInR     = "articles" <//> "in" <//> var
-listTranslationsInR = "articles" <//> "translatedto" <//> var
+listArticlesInR     = "articles"     <//> "in" <//> var
+listTranslationsInR = "translations" <//> "in" <//> var
 
 loginR, logoutR, registerR, profileR :: Path '[] Open
 loginR     = "login"
 logoutR    = "logout"
 registerR  = "register"
-profileR   = "profile"
+profileR   = "profile" <//> "edit"
 
 newArticlePath, listArticlesPath :: Text
 newArticlePath   = renderRoute newArticleR
