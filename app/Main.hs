@@ -24,7 +24,7 @@ import Web.Spock
 app :: TTNMonad ()
 app = do middleware . staticPolicy $ addBase "static"
          prehook initHook $ do
-             get root . redirect $ listTranslationsInPath English
+             get root              $ listTranslationsIn English
              get listArticlesR       listArticles
              get listArticlesInR     articlesInLang
              get listTranslationsInR listTranslationsIn

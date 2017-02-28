@@ -42,8 +42,8 @@ newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
 
 listPrefArticlesR, listPrefTranslationsR :: Path '[] Open
-listPrefArticlesR     = "articles"     <//> "favorite"
-listPrefTranslationsR = "translations" <//> "favorite"
+listPrefArticlesR     = "articles"     <//> "in" <//> "profilelangs"
+listPrefTranslationsR = "translations" <//> "in" <//> "profilelangs"
 
 listArticlesInR, listTranslationsInR :: Path '[Language] Open
 listArticlesInR     = "articles"     <//> "in" <//> var
