@@ -42,6 +42,9 @@ allLanguages = [ English
                , Turkish
                , Indonesian ]
 
+langAsText :: Language -> Text
+langAsText = pack . show
+
 instance Pg.FromField Language where
     fromField f dat = read . unpack <$> Pg.fromField f dat
 
@@ -87,7 +90,7 @@ data Article a =
     } deriving ( Read, Show )
 
 artLangAsText :: Article a -> Text
-artLangAsText = pack . show . artOrigLang
+artLangAsText = langAsText . artOrigLang
 
 -- | We are falling back to 0 but this should never happen
 artID' :: Article Stored -> Int

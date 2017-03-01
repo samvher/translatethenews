@@ -262,12 +262,12 @@ strong {
   font-weight: bold;
 }
 
-#login-box, #nav-box {
+#login-box, #nav-box, #lang-box {
   width: 100%;
   margin-bottom: 30px;
 }
 
-#login-box li, #nav-box li {
+#login-box li, #nav-box li, #lang-box li {
   width: 100%;
   text-align: right;
   font-family: 'PT Sans', serif;
@@ -275,3 +275,4 @@ strong {
   line-height: 1.5em;
   font-weight: bold;
 }
+

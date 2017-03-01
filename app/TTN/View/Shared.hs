@@ -9,6 +9,7 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 module TTN.View.Shared where
 
 import TTN.Model.Core
+import TTN.Model.User
 
 import Control.Monad.Trans.Class        ( lift )
 import Data.Text                        ( Text )
@@ -75,4 +76,8 @@ defaultBlocks :: TTNBlockDef ctx
 defaultBlocks TTNPageTitle = h "Translate the News"
 defaultBlocks TTNNavBar    = h "Nav bar"
 defaultBlocks TTNContent   = return ()
+
+-- | Get (Maybe) User
+getCurrentUser :: TTNTemplate ctx (Maybe User)
+getCurrentUser = lift . lift $ sessUser <$> S.readSession
 

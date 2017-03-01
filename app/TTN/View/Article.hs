@@ -184,9 +184,9 @@ renderTrans ts = blockDef
           a <- maybe (lift $ renderSimpleStr "Something strange happened!") -- TODO: set right
                      return a'
           renderListTrans a t
-        blockDef TTNContent = if null ts
-                                then p_ $ h "No translations found... Contribute!"
-                                else mapM_ renderSingle ts
+        blockDef TTNContent =
+          if null ts then p_ $ h "No translations found... Feel free to contribute!"
+                     else mapM_ renderSingle ts
         blockDef other      = defaultBlocks other
           
 -- * Google Translate URLs

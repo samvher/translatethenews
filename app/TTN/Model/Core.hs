@@ -64,14 +64,14 @@ data TTNBlock = TTNPageTitle -- ^ <title>
 
 -- | It has a ReaderT layer but we will only interact with it with
 --   runTemplate and getBlock.
-type TTNTemplate ctx = HtmlT (ReaderT (TTNBlockDef ctx) (TTNAction ctx)) ()
+type TTNTemplate ctx a = HtmlT (ReaderT (TTNBlockDef ctx) (TTNAction ctx)) a
 
 -- | Take the given template and blockdef and fill in the blocks.
-runTemplate :: TTNTemplate ctx -> TTNBlockDef ctx -> TTNView ctx ()
+runTemplate :: TTNTemplate ctx () -> TTNBlockDef ctx -> TTNView ctx ()
 runTemplate template blockDef = hoist (`runReaderT` blockDef) template
 
 -- | Retrieve the TTNView machinery for the given block.
-getBlock :: TTNBlock -> TTNTemplate ctx
+getBlock :: TTNBlock -> TTNTemplate ctx ()
 getBlock blockname = do
     f <- lift ask
     hoist lift $ f blockname

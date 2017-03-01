@@ -10,6 +10,7 @@ module TTN.View.Core where
 
 import TTN.Routes
 
+import TTN.Model.Article
 import TTN.Model.Core
 import TTN.Model.User
 import TTN.View.Shared
@@ -47,10 +48,10 @@ renderSimpleForm renderer view = renderPage blockDef
 
 -- * Template functions
 
-pageTemplate :: TTNTemplate ctx
+pageTemplate :: TTNTemplate ctx ()
 pageTemplate = html_ ( htmlHead >> htmlBody )
 
-htmlHead :: TTNTemplate ctx
+htmlHead :: TTNTemplate ctx ()
 htmlHead = head_ $ do
     title_ $ getBlock TTNPageTitle
     link_ [rel_ "stylesheet", type_ "text/css", href_ "/css/reset.css"]
@@ -60,29 +61,39 @@ htmlHead = head_ $ do
           "subset=cyrillic,cyrillic-ext,latin-ext"
     link_ [href_ gFonts, rel_ "stylesheet"]
 
-htmlBody :: TTNTemplate ctx
+htmlBody :: TTNTemplate ctx ()
 htmlBody = body_ . div_ [id_ "container"] $ do
     div_ [id_ "header"] $ do
       h1_ . a_ [href_ "/"] $ do span_ [class_ "site-title"] "translatethenews.org"
                                 span_ [class_ "site-logo"] ""
-      div_ [class_ "nav"] loginSegment
+      div_ [class_ "nav"] $ do
+          loginSegment
+          navSegment
     div_ [id_ "content-main"] $ getBlock TTNContent
 
-loginSegment :: TTNTemplate ctx
-loginSegment = do
-    currentUser <- lift . lift $ sessUser <$> S.readSession
-    maybe notLoggedInBox loggedInBox currentUser
+loginSegment :: TTNTemplate ctx ()
+loginSegment = maybe notLoggedInBox loggedInBox =<< getCurrentUser
   where notLoggedInBox = ul_ [id_ "login-box"] . li_ $ do
                              a_ [href_ loginPath] "Log in"
                              h " or "
                              a_ [href_ registerPath] "register"
-        loggedInBox :: User -> TTNTemplate ctx
-        loggedInBox u = do
-            ul_ [id_ "login-box"] $ do
-                li_ . h $ "Logged in as " <> uName u <> "."
-                li_ . a_ [href_ logoutPath] $ h "Log out"
-                li_ . a_ [href_ profilePath] $ h "Edit profile"
-            ul_ . div_ [id_ "nav-box"] $ do
-              li_ . a_ [href_ listPrefTranslationsPath] $ h "View translations"
-              li_ . a_ [href_ listPrefArticlesPath]     $ h "Translate articles"
+        loggedInBox :: User -> TTNTemplate ctx ()
+        loggedInBox u = ul_ [id_ "login-box"] $ do
+                            li_ . h $ "Logged in as " <> uName u <> "."
+                            li_ . a_ [href_ logoutPath] $ h "Log out"
+                            li_ . a_ [href_ profilePath] $ h "Edit profile"
+
+navSegment :: TTNTemplate ctx ()
+navSegment = maybe notLoggedInNav loggedInNav =<< getCurrentUser
+  where loggedInNav :: User -> TTNTemplate ctx ()
+        loggedInNav _ = ul_ . div_ [id_ "nav-box"] $ do
+            li_ . a_ [href_ listPrefTranslationsPath] $ h "View translations"
+            li_ . a_ [href_ listPrefArticlesPath]     $ h "Translate articles"
+        mkLangNavLink :: Language -> TTNTemplate ctx ()
+        mkLangNavLink l =
+            li_ . a_ [href_ $ listTranslationsInPath l] . h $ langAsText l
+        notLoggedInNav :: TTNTemplate ctx ()
+        notLoggedInNav = ul_ . div_ [id_ "lang-box"] $ do
+                             li_ . h $ "View translations in:"
+                             mapM_ mkLangNavLink allLanguages
 
