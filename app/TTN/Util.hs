@@ -13,6 +13,8 @@ import Data.Maybe                 ( listToMaybe )
 import Data.Char                  ( isAlpha, isDigit )
 import Data.Text                  ( Text )
 
+import Text.Pandoc                ( def, readMarkdown, writeHtmlString )
+
 import qualified Data.Text as T
 import qualified Data.Attoparsec.Text as P
 import qualified Data.Attoparsec.Combinator as P
@@ -85,4 +87,10 @@ dateP = do replicateM_ 4 P.digit
            replicateM_ 2 P.digit
            P.satisfy (== '-')
            replicateM_ 2 P.digit
+
+mdToHtml :: String -> String
+mdToHtml src = case md of
+    Left  _ -> "<h3>Error! Sorry...</h3>"
+    Right p -> writeHtmlString def p
+  where md = readMarkdown def src
 

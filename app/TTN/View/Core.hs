@@ -26,7 +26,7 @@ import qualified Web.Spock as S
 -- * Higher level layout functions
 
 renderPage :: TTNBlockDef ctx -> TTNAction ctx a
-renderPage blockDef= lucid $ runTemplate pageTemplate blockDef 
+renderPage blockDef = lucid $ runTemplate pageTemplate blockDef 
 
 renderSimpleStr :: String -> TTNAction ctx a
 renderSimpleStr msg = renderPage blockDef

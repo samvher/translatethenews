@@ -71,6 +71,10 @@ csrf = do tok <- lift S.getCsrfToken
 h :: Monad m => Text -> HtmlT m ()
 h = toHtml
 
+-- | Avoid annoying ambiguous types
+hr :: Monad m => Text -> HtmlT m ()
+hr = toHtmlRaw
+
 -- | Set some defaults for block contents
 defaultBlocks :: TTNBlockDef ctx
 defaultBlocks TTNPageTitle = h "Translate the News"

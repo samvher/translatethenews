@@ -9,9 +9,15 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.Controller.Core where
 
-import TTN.Model.Core
+import TTN.Util
 
+import TTN.Model.Core
+import TTN.View.Core
+import TTN.View.Shared
+
+import Control.Monad.IO.Class           ( liftIO )
 import Data.HVect                       ( HVect(..) )
+import Data.Text                        ( pack )
 
 import qualified Database.PostgreSQL.Simple as Pg
 import qualified Web.Spock as S
@@ -31,4 +37,9 @@ getCfg connInfo = do
 
 initHook :: TTNAction () (HVect '[])
 initHook = return HNil
+
+welcomePage :: TTNAction ctx a
+welcomePage = do
+    welcome <- liftIO $ readFile "WELCOME.md" -- TODO: some systematic location and wrapper
+    renderSimpleHtml . hr . pack $ mdToHtml welcome
 
