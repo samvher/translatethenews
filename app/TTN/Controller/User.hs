@@ -110,8 +110,7 @@ mkProfileForm user = "profile" .: validateM writeToDb ( mkUser
                             , uTransLangs = t }
         writeToDb u = Success <$> runQuerySafe (updateUser u)
         allLangs = zip allLanguages $ map (pack . show) allLanguages
-        defReadLangs = let stored = uReadLangs user
-                        in if null stored then [English] else stored
+        defReadLangs = uReadLangs user
 
 -- * Login/logout
 

@@ -126,6 +126,7 @@ listArticlesInLangs :: TTNAction ctx a
 listArticlesInLangs = do
     Just u <- sessUser <$> S.readSession  -- TODO: no Just
     let langs = uTransLangs u
+    when (null langs) $ renderSimpleStr "No languages chosen! Maybe you still have to set them in your profile?"
     as     <- runQuerySafe $ getArticlesInLangs langs
     renderPage $ renderArticleList as
 
@@ -209,6 +210,7 @@ listTranslationsIn l = listTranslationsInLangs [l]
 
 listTranslationsInLangs :: [Language] -> TTNAction ctx a
 listTranslationsInLangs langs = do
+    when (null langs) $ renderSimpleStr "No languages chosen! Maybe you still have to set them in your profile?"
     ts <- runQuerySafe $ getTranslationsInLangs langs
     renderPage $ renderTrans ts
 
