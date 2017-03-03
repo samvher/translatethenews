@@ -61,8 +61,9 @@ renderArticle :: Article Stored -> TTNBlockDef ctx
 renderArticle a = blockDef
   where blockDef TTNContent = div_ [id_ "view-article"] $ do
             articleHead a
-            div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $
-                h "Edit article"
+            -- Switched off for now
+            -- div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $
+                -- h "Edit article"
             maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
             renderBody $ artBody a
             articleFooter a
