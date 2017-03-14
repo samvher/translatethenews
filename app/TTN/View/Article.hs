@@ -201,5 +201,5 @@ mkGTranslateURL source target article_url =
 -- | Generate hyperlink
 renderGTranslate :: Language -> Language -> Text -> Text -> TTNView ctx ()
 renderGTranslate from to url label =
-    a_ [href_ (mkGTranslateURL from to url)] $ toHtml label
+    a_ [href_ (mkGTranslateURL from to url), target_ "_blank"] $ toHtml label
 
