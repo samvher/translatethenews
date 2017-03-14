@@ -130,6 +130,12 @@ listArticlesInLangs = do
     as     <- runQuerySafe $ getArticlesInLangs langs
     renderPage $ renderArticleList as
 
+listUserArticles :: TTNAction ctx a
+listUserArticles = do
+    Just u <- sessUser <$> S.readSession -- TODO: no Just
+    as     <- runQuerySafe $ getUserArticles (uID u)
+    renderPage $ renderArticleList as
+
 -- * Translation
 
 -- | Form for new translations. The supplied Article is the one we are

@@ -218,6 +218,18 @@ getArticlesInLangs :: [Language] -> Pg.Connection -> IO [Article Stored]
 getArticlesInLangs langs dbConn =
     Pg.query dbConn sqlGetArticlesInLangs $ Pg.Only (Pg.In langs)
 
+sqlGetUserArticles :: Pg.Query
+sqlGetUserArticles =
+    [sql| SELECT id, contributor_id, pub_date, title, author, url, summary,
+                 orig_lang, body, av_trans, created, modified
+          FROM articles
+          WHERE contributor_id = ?
+          ORDER BY created DESC |]
+
+getUserArticles :: Int -> Pg.Connection -> IO [Article Stored]
+getUserArticles uId dbConn =
+    Pg.query dbConn sqlGetUserArticles $ Pg.Only uId
+
 -- * Translation
 
 data Translation =

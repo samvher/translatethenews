@@ -89,6 +89,7 @@ navSegment = maybe notLoggedInNav loggedInNav =<< getCurrentUser
         loggedInNav _ = ul_ . div_ [id_ "nav-box"] $ do
             li_ . a_ [href_ listPrefTranslationsPath] $ h "View translations"
             li_ . a_ [href_ listPrefArticlesPath]     $ h "Translate articles"
+            li_ . a_ [href_ listMyArticlesPath]       $ h "My articles"
         mkLangNavLink :: Language -> TTNTemplate ctx ()
         mkLangNavLink l =
             li_ . a_ [href_ $ listTranslationsInPath l] . h $ langAsText l

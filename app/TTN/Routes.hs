@@ -42,9 +42,10 @@ listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"
 listArticlesR = "articles"
 
-listPrefArticlesR, listPrefTranslationsR :: Path '[] Open
+listPrefArticlesR, listPrefTranslationsR, listMyArticlesR :: Path '[] Open
 listPrefArticlesR     = "articles"     <//> "in" <//> "profilelangs"
 listPrefTranslationsR = "translations" <//> "in" <//> "profilelangs"
+listMyArticlesR       = "my-articles"
 
 listArticlesInR, listTranslationsInR :: Path '[Language] Open
 listArticlesInR     = "articles"     <//> "in" <//> var
@@ -60,9 +61,10 @@ newArticlePath, listArticlesPath :: Text
 newArticlePath   = renderRoute newArticleR
 listArticlesPath = renderRoute listArticlesR
 
-listPrefArticlesPath, listPrefTranslationsPath :: Text
+listPrefArticlesPath, listPrefTranslationsPath, listMyArticlesPath :: Text
 listPrefArticlesPath     = renderRoute listPrefArticlesR
 listPrefTranslationsPath = renderRoute listPrefTranslationsR
+listMyArticlesPath       = renderRoute listMyArticlesR
 
 listArticlesInPath, listTranslationsInPath :: Language -> Text
 listArticlesInPath     = renderRoute listArticlesInR

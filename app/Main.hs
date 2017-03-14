@@ -35,6 +35,7 @@ app = do middleware . staticPolicy $ addBase "static"
                  get     listArticlesInR       articlesInLang
                  get     listPrefTranslationsR listPrefTranslations
                  get     listPrefArticlesR     listArticlesInLangs
+                 get     listMyArticlesR       listUserArticles
                  getpost profileR              editProfile
                  get     logoutR               processLogout
                  getpost newArticleR           newArticle
