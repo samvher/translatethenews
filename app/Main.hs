@@ -6,13 +6,12 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module Main where
 
-import TTN.Hidden                     ( ttnConnInfo )
+import TTN.Hidden                     ( ttnConnString )
 import TTN.Routes
 
 import TTN.Controller.Article
 import TTN.Controller.Core
 import TTN.Controller.User
-import TTN.Model.Article              ( Language(..) )
 import TTN.Model.Core
 
 import Network.Wai.Middleware.Static  ( staticPolicy, addBase )
@@ -40,13 +39,12 @@ app = do middleware . staticPolicy $ addBase "static"
                  get     logoutR               processLogout
                  getpost newArticleR           newArticle
                  get     viewArticleR          viewArticle
-                 -- Disabling this for now, we don't really want articles
-                 -- to be edited, especially if there are translations.
+                 -- Gone. For now, we'll keep articles static.
                  -- getpost editArticleR          editArticle
                  getpost newTranslationR       newTranslation
 
 -- | Configures and runs the Spock server
 main :: IO ()
-main = do cfg <- getCfg ttnConnInfo
+main = do cfg <- getCfg ttnConnString
           runSpock 3000 $ spock cfg app
 

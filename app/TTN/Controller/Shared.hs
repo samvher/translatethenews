@@ -9,19 +9,27 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.Controller.Shared where
 
+import TTN.Model.Article
 import TTN.Model.Core
 import TTN.View.Core
 import TTN.View.Shared
 
 import Control.Exception                ( SomeException, try )
+import Control.Monad.Logger             ( NoLoggingT
+                                        , runNoLoggingT )
 import Control.Monad.IO.Class           ( liftIO )
+import Control.Monad.Trans.Resource     ( ResourceT
+                                        , runResourceT )
 import Data.Text                        ( Text )
 import Data.Time.Clock                  ( UTCTime, getCurrentTime )
 import Network.HTTP.Types.Status        ( status403 )
 import Text.Digestive.Form              ( Form )
 import Web.Spock.Digestive              ( runForm )
 
-import qualified Database.PostgreSQL.Simple as Pg
+import Database.Persist
+import Database.Persist.Sql
+
+-- import qualified Database.PostgreSQL.Simple as Pg
 import qualified Web.Spock as S
 
 -- | Serve access denied page
@@ -47,7 +55,7 @@ serveForm label form renderer successAction = do
 -- | Safely run a query (showing an error page in case of exceptions).
 --   We have to use forall a ctx to play nice with ScopedTypeVariables,
 --   and the type declaration of q'.
-runQuerySafe :: forall a ctx. (Pg.Connection -> IO a) -> TTNAction ctx a
+runQuerySafe :: forall a ctx. (SqlBackend -> IO a) -> TTNAction ctx a
 runQuerySafe q = do result <- S.runQuery q'
                     case result of
                       Left  err -> renderSimpleStr $ errorStr ++ show err
@@ -55,7 +63,17 @@ runQuerySafe q = do result <- S.runQuery q'
   where q' conn = try (q conn) :: IO (Either SomeException a)
         errorStr = "Sorry, a database error occurred: "
 
+-- | Adapted from Spock funblog
+runSQL :: SqlPersistM a -> TTNAction ctx a
+runSQL action = runQuerySafe $ \conn ->
+                  runResourceT . runNoLoggingT $ runSqlConn action conn
+
 -- | Get current time (use in validators in forms)
 now :: TTNAction ctx UTCTime
 now = liftIO getCurrentTime
+
+-- TODO: I guess if this is here some others should be here as well. Or
+-- this should go.
+getArticleById :: Key Article -> TTNAction ctx (Maybe (Entity Article))
+getArticleById aID = runSQL $ selectFirst [ArticleId ==. aID] []
 

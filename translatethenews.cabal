@@ -31,6 +31,8 @@ executable translatethenews
                      , TTN.Controller.User
                      , TTN.Model.Article
                      , TTN.Model.Core
+                     , TTN.Model.Language
+                     , TTN.Model.Translation
                      , TTN.Model.User
                      , TTN.View.Article
                      , TTN.View.Core
@@ -48,10 +50,14 @@ executable translatethenews
                      , hvect
                      , lucid
                      , mmorph
+                     , monad-logger
                      , pandoc
                      , path-pieces
-                     , postgresql-simple
+                     , persistent
+                     , persistent-postgresql
+                     , persistent-template
                      , reroute
+                     , resourcet
                      , split
                      , Spock
                      , Spock-digestive

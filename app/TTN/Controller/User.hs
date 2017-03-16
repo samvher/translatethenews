@@ -6,7 +6,6 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
 module TTN.Controller.User where
@@ -20,16 +19,23 @@ import TTN.Util                         ( checkNE
 import TTN.Controller.Shared
 import TTN.Model.Article
 import TTN.Model.Core
+import TTN.Model.Language
 import TTN.Model.User
 import TTN.View.Core
 import TTN.View.User
 
+import Control.Monad                    ( mplus )
 import Crypto.Hash.SHA256               ( hash )
 import Data.HVect                       ( HVect(..) )
+import Data.Maybe                       ( isJust, isNothing )
 import Data.Text                        ( Text, append, pack )
 import Data.Text.Encoding               ( encodeUtf8 )
+
 import Text.Digestive.Form
 import Text.Digestive.Types
+
+import Database.Persist
+import Database.Persist.Sql
 
 import qualified Web.Spock as S
 
@@ -37,13 +43,10 @@ import qualified Web.Spock as S
 
 -- | Test if the current visitor is logged in
 visitorLoggedIn :: TTNAction ctx Bool
-visitorLoggedIn = do u <- sessUser <$> S.readSession
-                     return $ case u of
-                       Nothing -> False
-                       Just _  -> True
+visitorLoggedIn = isJust . sessUser <$> S.readSession
 
 -- | Pages behind this hook require authentication
-authHook :: TTNAction (HVect xs) (HVect (User ': xs))
+authHook :: TTNAction (HVect xs) (HVect (Entity User ': xs))
 authHook = do oldCtx <- S.getContext
               u      <- sessUser <$> S.readSession
               case u of
@@ -54,9 +57,8 @@ authHook = do oldCtx <- S.getContext
 guestOnlyHook :: TTNAction (HVect xs) (HVect (IsGuest ': xs))
 guestOnlyHook = do oldCtx      <- S.getContext
                    logInStatus <- visitorLoggedIn
-                   if logInStatus
-                     then noAccess loggedIn
-                     else return (IsGuest :&: oldCtx)
+                   if logInStatus then noAccess loggedIn
+                                  else return (IsGuest :&: oldCtx)
 
 -- * Password hashing
 
@@ -72,45 +74,53 @@ encodePass = pack . show . hash . encodeUtf8 . append salt
 processRegistration :: TTNAction ctx a
 processRegistration =
     serveForm "register" registerForm renderRegisterForm $ \u ->
-        do runQuerySafe $ insertUser u
+        do runSQL $ insert u
            S.redirect loginPath -- TODO: Add some sort of notification
 
 -- | Registration form
-registerForm :: Form Text (TTNAction ctx) (Text, Text, Text)
+registerForm :: Form Text (TTNAction ctx) User
 registerForm = "register" .: checkM nonUniqueMsg uniqueness ( prepUser
     <$> "username" .: check "No username supplied" checkNE (text Nothing)
     <*> "email"    .: check "Email not valid" (testPattern emailP) (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
   where nonUniqueMsg = "Username or email already registered"
-        uniqueness (n, e, _) = runQuerySafe $ isUnique (n, e)
-        prepUser n e p = (n, e, encodePass p)
+        uniqueness = runSQL . hasUniqueCreds
+        prepUser n e p = User n e (encodePass p) [] []
+
+hasUniqueCreds :: User -> SqlPersistM Bool
+hasUniqueCreds (User n e _ _ _) = do
+    mUserU <- getBy $ UniqueUsername n
+    mUserE <- getBy $ UniqueEmail    e
+    return . isNothing $ mUserU `mplus` mUserE
 
 -- * User profile
 
 -- TODO: Type-safe authentication, use a notification for successful edit
 -- | Deal with user profile edits, for profile of logged in user
 editProfile :: TTNAction ctx a
-editProfile = do user <- getLoggedInUser
-                 let profileForm   = mkProfileForm user
-                     renderer      = renderProfileForm profilePath
-                     gotoProfile u = do S.modifySession $ \s ->
-                                            s { sessUser = Just u }
-                                        S.redirect profilePath
-                 serveForm "profile" profileForm renderer gotoProfile
+editProfile = do userEnt <- getLoggedInUser
+                 let profileForm      = mkProfileForm $ entUser userEnt
+                     renderer         = renderProfileForm profilePath
+                     processProfile u = do
+                         let uid = userID userEnt
+                         new <- runSQL $ do replace uid u
+                                            selectFirst [UserId ==. uid] []
+                         S.modifySession $ \s -> s { sessUser = new }
+                         S.redirect profilePath
+                 serveForm "profile" profileForm renderer processProfile
 
 mkProfileForm :: User -> Form Text (TTNAction ctx) User
-mkProfileForm user = "profile" .: validateM writeToDb ( mkUser
+mkProfileForm user = "profile" .: (mkUser
     <$> "email"       .: check "Email not valid"
                                (testPattern emailP)
-                               (text . Just $ uEmail user)
+                               (text . Just $ userEmail user)
     <*> "read-langs"  .: choiceMultiple allLangs (Just defReadLangs)
-    <*> "trans-langs" .: choiceMultiple allLangs (Just $ uTransLangs user))
-  where mkUser e r t = user { uEmail      = e
-                            , uReadLangs  = r
-                            , uTransLangs = t }
-        writeToDb u = Success <$> runQuerySafe (updateUser u)
+    <*> "trans-langs" .: choiceMultiple allLangs (Just $ userTransLangs user))
+  where mkUser e r t = user { userEmail      = e
+                            , userReadLangs  = r
+                            , userTransLangs = t }
         allLangs = zip allLanguages $ map (pack . show) allLanguages
-        defReadLangs = uReadLangs user
+        defReadLangs = userReadLangs user
 
 -- * Login/logout
 
@@ -122,15 +132,18 @@ processLogin = serveForm "login" loginForm renderLoginForm $ \u ->
                     S.redirect rootPath
 
 -- | Login form
-loginForm :: Form Text (TTNAction ctx) User
+loginForm :: Form Text (TTNAction ctx) (Entity User)
 loginForm = "login" .: validateM findUser (readCreds
     <$> "username" .: check "No username supplied" checkNE (text Nothing)
     <*> "password" .: check "No password supplied" checkNE (text Nothing))
   where readCreds u p  = (u, encodePass p)
-        findUser creds = let f  [] = Error "Invalid credentials"
-                             f [u] = Success u
-                             f  _  = Error "Multiple users, contact an admin"
-                          in f <$> runQuerySafe (getUsers creds)
+        findUser creds = do u <- runSQL $ checkLogin creds
+                            return $ maybe (Error "Invalid credentials") Success u
+
+checkLogin :: (Text, Text) -> SqlPersistM (Maybe (Entity User))
+checkLogin (n, p) = do maybeUser <- getBy (UniqueUsername n)
+                       return $ checkPass =<< maybeUser
+  where checkPass u = if userPass (entUser u) == p then Just u else Nothing
 
 -- | Remove authenticated status from the session
 processLogout :: TTNAction ctx a
@@ -140,15 +153,14 @@ processLogout = do S.modifySession $ \s -> s { sessUser = Nothing }
 -- * Get current user
 
 -- TODO: Use type safe authentication check
-getLoggedInUser :: TTNAction ctx User
+getLoggedInUser :: TTNAction ctx (Entity User)
 getLoggedInUser = do
     currentUser <- sessUser <$> S.readSession
     maybe (renderSimpleStr "Not logged in!") return currentUser
 
 -- | Weird formulation because it is used as a Form validator
-getLoggedInUID :: () -> TTNAction ctx (Result Text Int)
-getLoggedInUID _ = do u <- sessUser <$> S.readSession
-                      maybe (renderSimpleStr "Not logged in")
-                            (return . Success . uID)
-                            u
+getLoggedInUID :: () -> TTNAction ctx (Result Text (Key User))
+getLoggedInUID _ = do
+    u <- sessUser <$> S.readSession
+    maybe (renderSimpleStr "Not logged in") (return . Success . userID) u
 

@@ -4,6 +4,7 @@ Description : Defines the TTN monads and session and state types.
 Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 -}
 
+
 module TTN.Model.Core where
 
 import TTN.Model.User
@@ -15,15 +16,16 @@ import Control.Monad.Trans.Reader                   ( ReaderT(..)
                                                     , runReaderT )
 import Lucid                                        ( HtmlT )
 
+import Database.Persist.Postgresql
+
 import qualified Web.Spock as S
 import qualified Web.Spock.Config as S
-import qualified Database.PostgreSQL.Simple as Pg
 
 -- * Session info
 
 data TTNSes =
     TTNSes {
-      sessUser :: Maybe User
+      sessUser :: Maybe (Entity User)
     } deriving ( Read, Show )
 
 -- | Default session
@@ -43,9 +45,9 @@ defState = TTNSt ()
 
 -- * Spock type aliases
 
-type TTNAction ctx = S.SpockActionCtx ctx Pg.Connection TTNSes TTNSt
-type TTNCfg        = S.SpockCfg           Pg.Connection TTNSes TTNSt
-type TTNMonad  ctx = S.SpockCtxM      ctx Pg.Connection TTNSes TTNSt ()
+type TTNAction ctx = S.SpockActionCtx ctx SqlBackend TTNSes TTNSt
+type TTNCfg        = S.SpockCfg           SqlBackend TTNSes TTNSt
+type TTNMonad  ctx = S.SpockCtxM      ctx SqlBackend TTNSes TTNSt ()
 
 -- * More aliases but for the templating system
 --

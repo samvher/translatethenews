@@ -14,8 +14,12 @@ import TTN.Model.User
 import Control.Monad.Trans.Class        ( lift )
 import Data.Text                        ( Text )
 import Data.Text.Lazy                   ( toStrict )
+
 import Lucid
+
 import Text.Digestive.View
+
+import Database.Persist
 
 import qualified Text.Digestive.Lucid.Html5 as DL
 import qualified Web.Spock as S
@@ -82,6 +86,6 @@ defaultBlocks TTNNavBar    = h "Nav bar"
 defaultBlocks TTNContent   = return ()
 
 -- | Get (Maybe) User
-getCurrentUser :: TTNTemplate ctx (Maybe User)
+getCurrentUser :: TTNTemplate ctx (Maybe (Entity User))
 getCurrentUser = lift . lift $ sessUser <$> S.readSession
 

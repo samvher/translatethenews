@@ -18,6 +18,7 @@ import TTN.View.Shared
 import Control.Monad.Trans.Class            ( lift )
 import Data.Maybe                           ( fromJust )
 import Data.Text                            ( Text )
+import Database.Persist                     ( get )
 
 import Lucid
 import Text.Digestive.View
@@ -41,7 +42,8 @@ renderRegisterForm view = div_ [id_ "register-form"] .
 
 renderProfileForm :: Text -> View (TTNView ctx ()) -> TTNView ctx ()
 renderProfileForm target view = div_ [id_ "edit-profile-form"] $ do
-    currentUName <- lift (uName . fromJust . sessUser <$> S.readSession)
+    -- TODO: next line is ugly and should be abstracted
+    currentUName <- lift (userName . entUser . fromJust . sessUser <$> S.readSession)
     h2_ $ h currentUName
     form_ [method_ "post", action_ target] $ do
         DL.errorList "profile" view
@@ -65,10 +67,10 @@ renderLoginForm view = div_ [id_ "login-form"] .
 -- * User profile
 
 -- TODO: Flesh out
-renderProfileBadge :: Int -> TTNView ctx ()
+renderProfileBadge :: Key User -> TTNView ctx ()
 renderProfileBadge uID = do
-    user <- lift . runQuerySafe $ getUserById uID
-    em_ . toHtml $ maybe "(unknown)" uName user
+    user <- lift . runSQL $ get uID
+    em_ . toHtml $ maybe "(unknown)" userName user
 
 -- * Authentication pages
 

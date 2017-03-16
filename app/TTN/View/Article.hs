@@ -13,6 +13,8 @@ import TTN.Routes
 import TTN.Controller.Shared
 import TTN.Model.Article
 import TTN.Model.Core
+import TTN.Model.Language
+import TTN.Model.Translation
 import TTN.View.Core                    ( renderSimpleStr ) -- TODO: This should go
 import TTN.View.Shared
 import TTN.View.User
@@ -25,9 +27,13 @@ import Data.Text                        ( Text, pack )
 import Data.Time.Format                 ( FormatTime
                                         , defaultTimeLocale
                                         , formatTime )
+
 import Lucid
+
 import Text.Digestive.Form
 import Text.Digestive.View
+
+import Database.Persist
 
 import qualified Text.Digestive.Lucid.Html5 as DL
 
@@ -57,53 +63,53 @@ getTime :: FormatTime t => t -> String
 getTime = formatTime defaultTimeLocale "%e %B %Y, %H:%M"
 
 -- | Generate HTML for showing an Article
-renderArticle :: Article Stored -> TTNBlockDef ctx
-renderArticle a = blockDef
+renderArticle :: Entity Article -> TTNBlockDef ctx
+renderArticle ea@(Entity key a) = blockDef
   where blockDef TTNContent = div_ [id_ "view-article"] $ do
-            articleHead a
+            articleHead ea
             -- Switched off for now
             -- div_ [id_ "edit-article-link"] . a_ [href_ $ editArticlePath a] $
                 -- h "Edit article"
-            maybe (return ()) (p_ . strong_ . toHtml) $ artSummary a
-            renderBody $ artBody a
-            articleFooter a
+            maybe (return ()) (p_ . strong_ . toHtml) $ articleSummary a
+            renderBody $ articleBody a
+            articleFooter ea
         blockDef other      = defaultBlocks other
 
-articleHead :: Article Stored -> TTNView ctx ()
-articleHead a = do
+articleHead :: Entity Article -> TTNView ctx ()
+articleHead (Entity key a) = do
     -- p_ . em_ . toHtml $ "Submitted " <> (getTime $ artCreated a)
     -- p_ . em_ . toHtml $ "Last edited " <> (getTime $ artModified a)
-    h2_ . toHtml $ artTitle a
+    h2_ . toHtml $ articleTitle a
     div_ [class_ "art-time-author"] . em_ $ do
-      h $ artPubDate a <> " - " <> artAuthor a <> " - "
-      a_ [href_ $ artURL a, target_ "_blank"] $ h "Original"
+      h $ articlePubDate a <> " - " <> articleAuthor a <> " - "
+      a_ [href_ $ articleUrl a, target_ "_blank"] $ h "Original"
 
-articleFooter :: Article Stored -> TTNView ctx ()
-articleFooter a = do
+articleFooter :: Entity Article -> TTNView ctx ()
+articleFooter ea@(Entity key a) = do
     div_ [class_ "user-badge"] $ do h "Contributed by "
-                                    renderProfileBadge $ artUID a
+                                    renderProfileBadge $ articleContrId a
     div_ [id_ "available-translations"] $ do h "Available translations: "
-                                             mapM_ translationLink $ artAvTrans a
+                                             mapM_ translationLink $ articleAvTrans a
     div_ [id_ "translate-to"] $ do h "Translate to:"
                                    mapM_ translateLink allLanguages
   where translationLink :: Language -> TTNView ctx ()
         translationLink l = div_ [class_ "translation-link"] $
-                              a_ [href_ $ viewTranslationPath a l] $ toHtml l
+                              a_ [href_ $ viewTranslationPath ea l] $ toHtml l
         translateLink :: Language -> TTNView ctx ()
         translateLink l = div_ [class_ "translate-link"] $
-                            a_ [href_ $ newTranslationPath a l] $ toHtml l
+                            a_ [href_ $ newTranslationPath ea l] $ toHtml l
 
 -- | For use in listings
-renderListArticle :: Article Stored -> TTNView ctx ()
-renderListArticle a =
+renderListArticle :: Entity Article -> TTNView ctx ()
+renderListArticle ea@(Entity aid a) =
     div_ [class_ "list-elem article"] $ do
-      h3_ . a_ [href_ (viewArticlePath a)] . toHtml $ artTitle a
-      p_ [class_ "list-article-summary"] . h . fromMaybe "" $ artSummary a
+      h3_ . a_ [href_ (viewArticlePath ea)] . toHtml $ articleTitle a
+      p_ [class_ "list-article-summary"] . h . fromMaybe "" $ articleSummary a
       div_ [class_ "article-meta"] . em_ $ do
-          h (artPubDate a <> " - " <> artAuthor a <> " - ")
-          a_ [href_ $ artURL a, target_ "_blank"] "Original"
+          h (articlePubDate a <> " - " <> articleAuthor a <> " - ")
+          a_ [href_ $ articleUrl a, target_ "_blank"] "Original"
 
-renderArticleList :: [Article Stored] -> TTNBlockDef ctx
+renderArticleList :: [Entity Article] -> TTNBlockDef ctx
 renderArticleList as = blockDef
   where blockDef TTNContent = do
           div_ [id_ "new-article-link"] . a_ [href_ newArticlePath] $ h "Add article"
@@ -117,22 +123,22 @@ renderArticleList as = blockDef
 --   for getting the sentences from the original article (they are stored
 --   in form fields which do not accept data). (See 'mkTranslateForm' in
 --   TTN.Controller.Article)
-renderTranslate :: Article Stored
+renderTranslate :: Entity Article
                 -> Language
                 -> Text
                 -> View (TTNView ctx ())
                 -> TTNView ctx ()
-renderTranslate art lang target view =
+renderTranslate ea@(Entity aid art) lang target view =
     div_ [id_ "translation-form"] . form_ [method_ "post", action_ target] $ do
         DL.errorList "translate" view
-        div_ [id_ "gt-link"] $ renderGTranslate (artOrigLang art) lang
-                                                (artURL art)
+        div_ [id_ "gt-link"] $ renderGTranslate (articleOrigLang art) lang
+                                                (articleUrl art)
                                                 "View on Google Translate"
         h3_ $ h "Title"
-        toHtml $ artTitle art
+        toHtml $ articleTitle art
         inputText_ "translate.title" "" view
         h3_ $ h "Summary"
-        toHtml . fromMaybe "" $ artSummary art
+        toHtml . fromMaybe "" $ articleSummary art
         inputTextArea_ (Just 5) (Just 110) "translate.summary" "" view
         h3_ $ h "Body"
         forM_ (listSubViews "translate.body" view) $ \v' ->
@@ -145,49 +151,50 @@ renderTranslate art lang target view =
         submit "Submit translation"
 
 -- | Generate HTML for showing a translation
-renderTranslation :: Article Stored -> [Translation] -> TTNBlockDef ctx
-renderTranslation a ts = blockDef
-  where blockDef TTNContent = mapM_ (renderSingleTrans a) ts
+renderTranslation :: Entity Article -> [Entity Translation] -> TTNBlockDef ctx
+renderTranslation ea ts = blockDef
+  where blockDef TTNContent = mapM_ (renderSingleTrans ea) ts
         blockDef other      = defaultBlocks other
 
 -- TODO: This is not quite right here
-renderSingleTrans :: Article Stored -> Translation -> TTNView ctx ()
-renderSingleTrans a t = do
-    -- p_ . em_ . toHtml $ "Submitted " <> show (trCreated t)
-    h2_ . toHtml $ trTitle t
-    p_ . em_ . toHtml $ (artPubDate a <> " - " <> artAuthor a)
-    p_ . a_ [href_ $ artURL a] . h $ "Original: " <> artTitle a
-    -- p_ . 
-    -- 
-    maybe (return ()) (p_ . strong_ . toHtml) $ trSummary t
-    renderBody $ trBody t
+renderSingleTrans :: Entity Article -> Entity Translation -> TTNView ctx ()
+renderSingleTrans ea@(Entity aid a) et@(Entity tid t) = do
+    -- p_ . em_ . toHtml $ "Submitted " <> show (translationCreated t)
+    h2_ . toHtml $ translationTitle t
+    p_ . em_ . toHtml $ (articlePubDate a <> " - " <> articleAuthor a)
+    p_ . a_ [href_ $ articleUrl a] . h $ "Original: " <> articleTitle a
+    maybe (return ()) (p_ . strong_ . toHtml) $ translationSummary t
+    renderBody $ translationBody t
     div_ [class_ "user-badge"] $ do h "Contributed by "
-                                    renderProfileBadge $ trUID t
-    div_ [id_ "original-link"] $ renderGTranslate (artOrigLang a)
-                                                  (trLang t)
-                                                  (artURL a)
+                                    renderProfileBadge $ translationContrId t
+    div_ [id_ "original-link"] $ renderGTranslate (articleOrigLang a)
+                                                  (translationLang t)
+                                                  (articleUrl a)
                                                   "View on Google Translate"
 
 -- | For use in listings
-renderListTrans :: Article Stored -> Translation -> TTNView ctx ()
-renderListTrans a t =
+renderListTrans :: Entity Article -> Entity Translation -> TTNView ctx ()
+renderListTrans ea@(Entity aid a) et@(Entity tid t) =
     div_ [class_ "list-elem translation"] $ do
-      h3_ . a_ [href_ (viewTranslationPath a (trLang t))] . toHtml $ trTitle t
-      p_ [class_ "list-translation-summary"] . h . fromMaybe "" $ trSummary t
+      h3_ . a_ [href_ (viewTranslationPath ea (translationLang t))] . toHtml $
+          translationTitle t
+      p_ [class_ "list-translation-summary"] . h . fromMaybe "" $
+          translationSummary t
       div_ [class_ "translation-meta"] . em_ $ do
-          h (artPubDate a <> " - " <> artAuthor a <> " - ")
-          a_ [href_ $ artURL a, target_ "_blank"] "Original"
+          h (articlePubDate a <> " - " <> articleAuthor a <> " - ")
+          a_ [href_ $ articleUrl a, target_ "_blank"] "Original"
 
-renderTrans :: [Translation] -> TTNBlockDef ctx
+-- TODO: This function is ugly
+renderTrans :: [Entity Translation] -> TTNBlockDef ctx
 renderTrans ts = blockDef
-  where renderSingle t = do
-          a' <- lift $ runQuerySafe (getArticleById $ trAID t)
+  where renderSingle et@(Entity tid t) = do
+          a' <- lift . getArticleById $ translationArtId t
           a <- maybe (lift $ renderSimpleStr "Something strange happened!") -- TODO: set right
                      return a'
-          renderListTrans a t
-        blockDef TTNContent =
-          if null ts then p_ $ h "No translations found... Feel free to contribute!"
-                     else mapM_ renderSingle ts
+          renderListTrans a et
+        blockDef TTNContent = if null ts
+            then p_ $ h "No translations found... Feel free to contribute!"
+            else mapM_ renderSingle ts
         blockDef other      = defaultBlocks other
           
 -- * Google Translate URLs

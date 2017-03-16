@@ -10,9 +10,11 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 module TTN.Routes where
 
 import TTN.Model.Article
+import TTN.Model.Language
 
 import Data.Maybe                ( fromMaybe )
 import Data.Text                 ( Text )
+import Database.Persist          ( Entity )
 import Web.Routing.Combinators   ( Path(..)
                                  , PathState(..)
                                  , var )
@@ -21,22 +23,22 @@ import Web.Spock                 ( renderRoute
                                  , (<//>) )
 
 -- | Argument is article id
-viewArticleR, editArticleR :: Path '[Int] Open
+viewArticleR, editArticleR :: Path '[Key Article] Open
 viewArticleR      = "articles" <//> var
 editArticleR      = "articles" <//> var <//> "edit"
 
-viewArticlePath, editArticlePath :: Article Stored -> Text
-viewArticlePath = renderRoute viewArticleR . artID'
-editArticlePath = renderRoute editArticleR . artID'
+viewArticlePath, editArticlePath :: Entity Article -> Text
+viewArticlePath = renderRoute viewArticleR . articleID
+editArticlePath = renderRoute editArticleR . articleID
 
 -- | Arguments are first article id, then language
-newTranslationR, viewTranslationR :: Path '[Int, Language] Open
+newTranslationR, viewTranslationR :: Path '[Key Article, Language] Open
 newTranslationR  = "articles" <//> var <//> "translations" <//> var <//> "new"
 viewTranslationR = "articles" <//> var <//> "translations" <//> var <//> "view"
 
-newTranslationPath, viewTranslationPath :: Article Stored -> Language -> Text
-newTranslationPath  a = renderRoute newTranslationR  (artID' a)
-viewTranslationPath a = renderRoute viewTranslationR (artID' a)
+newTranslationPath, viewTranslationPath :: Entity Article -> Language -> Text
+newTranslationPath  a = renderRoute newTranslationR  (articleID a)
+viewTranslationPath a = renderRoute viewTranslationR (articleID a)
 
 listArticlesR, newArticleR :: Path '[] Open
 newArticleR   = "articles" <//> "new"

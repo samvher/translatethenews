@@ -5,13 +5,11 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 -}
 
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module TTN.Controller.Article where
 
 import TTN.Util                         ( checkNE
                                         , dateP
-                                        , maybeRead
                                         , testPattern )
 import TTN.Routes
 
@@ -19,6 +17,8 @@ import TTN.Controller.Shared
 import TTN.Controller.User
 import TTN.Model.Article
 import TTN.Model.Core
+import TTN.Model.Language
+import TTN.Model.Translation
 import TTN.Model.User
 import TTN.View.Article
 import TTN.View.Core
@@ -27,8 +27,11 @@ import Control.Monad                    ( when, (=<<) )
 import Data.Maybe                       ( fromJust, fromMaybe, isNothing )
 import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text, pack, unpack )
+
 import Text.Digestive.Form
 import Text.Digestive.Types
+
+import Database.Persist
 
 import qualified Web.Spock as S
 import qualified Data.Text as T
@@ -37,103 +40,95 @@ import qualified Data.Text as T
 
 -- TODO: Validate supplied URL
 -- TODO: Uniqueness validation?
--- | If an article is supplied, generate an edit-form, otherwise a new-form
-mkArticleForm :: Maybe (Article a)
-              -> Form Text (TTNAction ctx) (Article Stored)
-mkArticleForm a = "article" .: validateM writeToDb ( Article
-    <$> "id"       .: pure (artID =<< a)
+-- | Prefill if an article is supplied
+mkArticleForm :: Maybe Article -> Form Text (TTNAction ctx) Article
+mkArticleForm a = "article" .: ( Article
+    <$> "uid"      .: validateM getLoggedInUID (pure ())
     -- TODO: currently everyone has edit rights and UID gets changed on edit
-    <*> "uid"      .: validateM getLoggedInUID (pure ())
     <*> "pub_date" .: check "Date not valid"
                             (testPattern dateP)
-                            (text $ artPubDate <$> a)
+                            (text $ articlePubDate <$> a)
     <*> "title"    .: check "No title supplied"
                             checkNE
-                            (text $ artTitle <$> a)
+                            (text $ articleTitle <$> a)
     <*> "author"   .: check "No author supplied"
                             checkNE
-                            (text $ artAuthor <$> a)
+                            (text $ articleAuthor <$> a)
     <*> "url"      .: check "No URL supplied"
                             checkNE
-                            (text $ artURL <$> a)
-    <*> "summary"  .: validate wrapMaybe (text $ artSummary =<< a)
-    <*> "language" .: choice allLangs (artOrigLang <$> a)
-    <*> "body"     .: validate validBody (text $ bodyAsText . artBody <$> a)
-    <*> "av_trans" .: (pure . fromMaybe [] $ artAvTrans <$> a) 
-    <*> "created"  .: validateM valCreated (pure $ artCreated <$> a)
-    <*> "modified" .: validateM (\_ -> Success <$> now) (pure ()) )
-  where wrapMaybe x = if T.length x > 0
-                        then Success $ Just x
-                        else Success Nothing
-        allLangs = zip allLanguages $ map (pack . show) allLanguages
-        validBody b = if not $ T.null b
-                        then Success $ textToBody b
-                        else Error "No body supplied"
-        -- | Here something subtle is going on. We're using Stored/UnStored
-        --   on Article as phantom types to affect the way Pg.ToRow kicks
-        --   in (see TTN.Model.Article). If it's a new article (no ID
-        --   assigned, UnStored) it gets INSERTed into the database. If it's an
-        --   existing article (which has an ID, Stored) it gets UPDATEd in
-        --   the database.
-        writeToDb d = let q = case artID =<< a of
-                                Nothing -> insertArticle
-                                Just _  -> updateArticle . markStored
-                       in Success <$> runQuerySafe (q d)
-        valCreated t = if isNothing t
-                         then Success <$> now
-                         else return . Success $ fromJust t
+                            (text $ articleUrl <$> a)
+    <*> "summary"  .: validate wrapMaybe (text $ articleSummary =<< a)
+    <*> "language" .: choice allLangs (articleOrigLang <$> a)
+    <*> "body"     .: validate validBody (text $ bodyAsText . articleBody <$> a)
+    <*> "av_trans" .: (pure . fromMaybe [] $ articleAvTrans <$> a) 
+    <*> "created"  .: validateM valCreated (pure $ articleCreated <$> a)
+    <*> "modified" .: validateM (\_ -> Success <$> now) (pure ())
+    <*> pure "[]"
+    <*> pure "[]" )
+  where wrapMaybe x = if T.length x > 0 then Success $ Just x
+                                        else Success Nothing
+        allLangs    = zip allLanguages $ map (pack . show) allLanguages
+        validBody b = if not $ T.null b then Success $ textToBody b
+                                        else Error "No body supplied"
+        valCreated   = maybe (Success <$> now) (return . Success)
 
 -- | Serve and process new-Article form
 newArticle :: TTNAction ctx a
-newArticle = serveForm "article" articleForm renderer gotoViewArticle
-  where articleForm = mkArticleForm Nothing
-        renderer = renderArticleForm newArticlePath
+newArticle = serveForm "article" articleForm renderer processArticle
+  where articleForm      = mkArticleForm Nothing
+        renderer         = renderArticleForm newArticlePath
+        processArticle a = do new <- runSQL $ insert a
+                              gotoViewArticle new
 
 -- | Serve and process edit-Article form
-editArticle :: Int -> TTNAction ctx a
+editArticle :: Key Article -> TTNAction ctx a
 editArticle aID = do
-    art <- runQuerySafe $ getArticleById aID
-    let articleForm = mkArticleForm art
-        renderer    = renderArticleForm $ S.renderRoute editArticleR aID
-    serveForm "article" articleForm renderer gotoViewArticle
+    art <- runSQL $ get aID
+    let articleForm      = mkArticleForm art
+        renderer         = renderArticleForm $ S.renderRoute editArticleR aID
+        processArticle a = do runSQL . replace aID $ a
+                              gotoViewArticle aID
+    serveForm "article" articleForm renderer processArticle
 
 -- | Show requested article
-viewArticle :: Int -> TTNAction ctx a
-viewArticle aID = do art <- runQuerySafe $ getArticleById aID
+viewArticle :: Key Article -> TTNAction ctx a
+viewArticle aID = do art <- getArticleById aID
                      maybe (renderSimpleStr "Not found!")
                            (renderPage . renderArticle)
                            art
 
 -- | Article listing
 listArticles :: TTNAction ctx a
-listArticles = renderPage . renderArticleList =<< runQuerySafe getArticleList
+listArticles = renderPage . renderArticleList =<< runSQL getArticleList
+  where getArticleList = selectList [] [Desc ArticleCreated]
 
 -- | Update the "available translations" field
-updateAvTrans :: Int -> TTNAction ctx (Article Stored)
-updateAvTrans aID = do art   <- findArticle aID
-                       langs <- runQuerySafe $ getTransLangs aID
-                       runQuerySafe $ updateArticle art { artAvTrans = langs }
-
+-- updateAvTrans :: Int -> TTNAction ctx (Article Stored)
+-- updateAvTrans aID = do art   <- findArticle aID
+--                        langs <- runQuerySafe $ getTransLangs aID
+--                        runQuerySafe $ updateArticle art { artAvTrans = langs }
+-- 
 -- | Article listing for specific language (where translation to this
---   language is available).
+--   language is available). -- TODO: This naming confuses even me.
 articlesInLang :: Language -> TTNAction ctx a
-articlesInLang l = renderPage . renderArticleList =<<
-                       runQuerySafe (getArticlesTranslatedToLang l)
+articlesInLang l = do
+    articles <- runSQL $ getArticlesTranslatedToLang l
+    renderPage $ renderArticleList articles
 
 -- TODO: Confusing naming with function above (which might not be
 -- necessary)
 listArticlesInLangs :: TTNAction ctx a
 listArticlesInLangs = do
     Just u <- sessUser <$> S.readSession  -- TODO: no Just
-    let langs = uTransLangs u
+    let langs = userTransLangs $ entUser u
     when (null langs) $ renderSimpleStr "No languages chosen! Maybe you still have to set them in your profile?"
-    as     <- runQuerySafe $ getArticlesInLangs langs
+    as     <- runSQL $ selectList [ArticleOrigLang <-. langs] [Desc ArticleCreated]
     renderPage $ renderArticleList as
 
 listUserArticles :: TTNAction ctx a
 listUserArticles = do
     Just u <- sessUser <$> S.readSession -- TODO: no Just
-    as     <- runQuerySafe $ getUserArticles (uID u)
+    as     <- runSQL $ selectList [ArticleContrId ==. userID u] [Desc ArticleCreated]
     renderPage $ renderArticleList as
 
 -- * Translation
@@ -141,25 +136,20 @@ listUserArticles = do
 -- | Form for new translations. The supplied Article is the one we are
 --   writing a translation for. The Language argument is the target
 --   language, the source language is taken from the Article.
-mkTranslateForm :: Article Stored -> [Translation] -> Language
+mkTranslateForm :: Entity Article -> [Entity Translation] -> Language
                 -> Form Text (TTNAction ctx) Translation
-mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
-    <$> "id"       .: pure Nothing
-    <*> "aid"      .: validate artHasID (pure a)
+mkTranslateForm ea@(Entity aid a) _ lang = "translate" .: ( Translation
+    <$> "aid"      .: pure aid
     <*> "uid"      .: validateM getLoggedInUID (pure ())
     <*> "lang"     .: pure lang
     -- TODO: pre-fill with existing translations
     <*> "title"    .: check "No title supplied"  checkNE (text Nothing)
     <*> "summary"  .: validate wrapMaybe (text Nothing)
-    <*> "body"     .: listOf mkParagraphForm (Just $ artBody a)
-    <*> "created"  .: validateM (\_ -> Success <$> now) (pure ()) )
-  where writeToDb t = Success <$> runQuerySafe (insertTranslation t)
-        artHasID  a = case artID a of
-                        Just aID -> Success aID
-                        _        -> Error "Supplied article has no ID"
-        wrapMaybe x = if T.length x > 0
-                        then Success $ Just x
-                        else Success Nothing
+    <*> "body"     .: listOf mkParagraphForm (Just $ articleBody a)
+    <*> "created"  .: validateM (\_ -> Success <$> now) (pure ())
+    <*> pure "[]" )
+  where wrapMaybe x = if T.length x > 0 then Success $ Just x
+                                        else Success Nothing
         mkParagraphForm ss = "paragraph" .: listOf mkSentenceForm ss
         -- | Input is a sentence from the source article, output is a form
         --   element for a sentence in the translation. The "original" field is
@@ -174,42 +164,41 @@ mkTranslateForm a _ lang = "translate" .: validateM writeToDb ( Translation
         -- avoid non-exhaustive pattern matching.
         mkSentenceForm Nothing = pure (0, "bla")
 
-findArticle :: Int -> TTNAction ctx (Article Stored)
-findArticle aID = do
-    art <- runQuerySafe (getArticleById aID)
-    if (isNothing art)
-      then renderSimpleStr errorStr
-      else return $ fromJust art
+-- | Fetch the Article with given ID and its translations to given Language.
+getArtTranslations :: Key Article
+                   -> Language
+                   -> TTNAction ctx (Entity Article, [Entity Translation])
+getArtTranslations aID lang = do
+    art <- getArticleById aID
+    when (isNothing art) $ renderSimpleStr errorStr
+    ts  <- runSQL $ selectList [ TranslationArtId ==. aID,
+                                 TranslationLang  ==. lang ]
+                               [ Desc TranslationCreated ]
+    return (fromJust art, ts)
   where errorStr = "Error: tried to access non-existing article."
 
--- | Fetch the Article with given ID and its translations to given Language.
-getArtTranslations :: Int -> Language -> TTNAction ctx (Article Stored, [Translation])
-getArtTranslations aID lang = do
-    art <- findArticle aID
-    ts  <- runQuerySafe $ getTranslations aID lang
-    return (art, ts)
-
 -- | Serve and process new-Translation form
-newTranslation :: Int -> Language -> TTNAction ctx a
+newTranslation :: Key Article -> Language -> TTNAction ctx a
 newTranslation aID lang = do
     (art, ts) <- getArtTranslations aID lang
     let translateForm = mkTranslateForm art ts lang
         renderer      = renderTranslate art lang $
                             S.renderRoute newTranslationR aID lang
     serveForm "translate" translateForm renderer $ \t -> do
-        updateAvTrans aID
+        runSQL $ insert t
+        -- updateAvTrans aID -- SUPERTODO: update available translations list
         gotoViewTranslation t
 
 -- | Show translations for chosen Article in chosen Language
-viewTranslation :: Int -> Language -> TTNAction ctx a
+viewTranslation :: Key Article -> Language -> TTNAction ctx a
 viewTranslation aID lang = do
     (art, ts) <- getArtTranslations aID lang
     renderPage $ renderTranslation art ts
 
 listPrefTranslations :: TTNAction ctx a
 listPrefTranslations = do
-    Just u <- sessUser <$> S.readSession  -- TODO: no Just
-    listTranslationsInLangs $ uReadLangs u
+    Just (Entity _ u) <- sessUser <$> S.readSession  -- TODO: no Just
+    listTranslationsInLangs $ userReadLangs u
 
 listTranslationsIn :: Language -> TTNAction ctx a
 listTranslationsIn l = listTranslationsInLangs [l]
@@ -217,17 +206,18 @@ listTranslationsIn l = listTranslationsInLangs [l]
 listTranslationsInLangs :: [Language] -> TTNAction ctx a
 listTranslationsInLangs langs = do
     when (null langs) $ renderSimpleStr "No languages chosen! Maybe you still have to set them in your profile?"
-    ts <- runQuerySafe $ getTranslationsInLangs langs
+    ts <- runSQL $ getTranslationsInLangs langs
     renderPage $ renderTrans ts
 
 -- * Redirects
 
 -- | Redirect to the view page for this article
-gotoViewArticle :: Article Stored -> TTNAction ctx a
-gotoViewArticle = S.redirect . S.renderRoute viewArticleR . fromJust . artID
+gotoViewArticle :: Key Article -> TTNAction ctx a
+gotoViewArticle = S.redirect . S.renderRoute viewArticleR
 
 -- | Redirect to the view page for this translation
 gotoViewTranslation :: Translation -> TTNAction ctx a
 gotoViewTranslation t =
-    S.redirect $ S.renderRoute viewTranslationR (trAID t) (trLang t)
+    S.redirect $ S.renderRoute viewTranslationR (translationArtId t)
+                                                (translationLang t)
 

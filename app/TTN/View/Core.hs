@@ -11,6 +11,7 @@ module TTN.View.Core where
 import TTN.Routes
 
 import TTN.Model.Article
+import TTN.Model.Language
 import TTN.Model.Core
 import TTN.Model.User
 import TTN.View.Shared
@@ -18,6 +19,7 @@ import TTN.View.Shared
 import Control.Monad.Trans.Class        ( lift )
 import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text )
+import Database.Persist                 ( Entity )
 import Lucid
 import Text.Digestive.View
 
@@ -77,15 +79,15 @@ loginSegment = maybe notLoggedInBox loggedInBox =<< getCurrentUser
                              a_ [href_ loginPath] "Log in"
                              h " or "
                              a_ [href_ registerPath] "register"
-        loggedInBox :: User -> TTNTemplate ctx ()
+        loggedInBox :: Entity User -> TTNTemplate ctx ()
         loggedInBox u = ul_ [id_ "login-box"] $ do
-                            li_ . h $ "Logged in as " <> uName u <> "."
+                            li_ . h $ "Logged in as " <> userName (entUser u) <> "."
                             li_ . a_ [href_ logoutPath] $ h "Log out"
                             li_ . a_ [href_ profilePath] $ h "Edit profile"
 
 navSegment :: TTNTemplate ctx ()
 navSegment = maybe notLoggedInNav loggedInNav =<< getCurrentUser
-  where loggedInNav :: User -> TTNTemplate ctx ()
+  where loggedInNav :: Entity User -> TTNTemplate ctx ()
         loggedInNav _ = ul_ . div_ [id_ "nav-box"] $ do
             li_ . a_ [href_ listPrefTranslationsPath] $ h "View translations"
             li_ . a_ [href_ listPrefArticlesPath]     $ h "Translate articles"
