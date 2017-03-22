@@ -8,6 +8,7 @@ flags: {}
 extra-package-dbs: []
 
 extra-deps:
+  - datetime-0.3.1
   - digestive-functors-0.8.2.0
   - digestive-functors-lucid-0.0.0.4
   - Spock-digestive-0.3.0.0
