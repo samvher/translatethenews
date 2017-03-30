@@ -41,6 +41,7 @@ app = do middleware . staticPolicy $ addBase "static"
                  getpost newArticleR           newArticle
                  get     viewArticleR          viewArticle
                  getpost newTranslationR       newTranslation
+                 get     autoTranslationR      autoTranslation
              prehook adminOnlyHook $ do
                  getpost editArticleR          editArticle
                  get     migration1R           migrate1

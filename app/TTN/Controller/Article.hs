@@ -8,6 +8,7 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 
 module TTN.Controller.Article where
 
+import TTN.Hidden
 import TTN.Util
 import TTN.Routes
 
@@ -22,6 +23,7 @@ import TTN.View.Article
 import TTN.View.Core
 
 import Control.Monad                    ( when, (=<<) )
+import Control.Monad.IO.Class           ( liftIO )
 import Data.List                        ( sort )
 import Data.Maybe                       ( fromJust
                                         , fromMaybe
@@ -29,14 +31,16 @@ import Data.Maybe                       ( fromJust
                                         , listToMaybe )
 import Data.Monoid                      ( (<>) )
 import Data.Text                        ( Text, pack, unpack )
+import Data.Time.Clock                  ( getCurrentTime )
 
 import Text.Digestive.Form
 import Text.Digestive.Types
 
 import Database.Persist
 
-import qualified Web.Spock as S
 import qualified Data.Text as T
+import qualified TTN.Bing as B
+import qualified Web.Spock as S
 
 -- * Article
 
@@ -202,6 +206,30 @@ newTranslation aID lang = do
           insert t
           update aID [ArticleAvTrans =. updateAvTrans (articleAvTrans art) lang]
         gotoViewTranslation t
+
+getAdminID :: TTNAction ctx (Key User)
+getAdminID = do admin <- runSQL $ selectFirst [ UserName ==. "admin" ] []
+                when (isNothing admin) $
+                    renderSimpleStr "An error occurred: no admin user found"
+                let Just (Entity adminID _) = admin
+                return adminID
+
+autoTranslation :: Key Article -> Language -> TTNAction ctx a
+autoTranslation aID lang = do
+    ma <- runSQL $ get aID
+    when (isNothing ma) $ renderSimpleStr "Article not found"
+    adminID <- getAdminID
+    let Just art = ma
+    res <- liftIO . B.evalBing azureKey $ do
+        let trans txt = B.translateM txt (articleOrigLang art) lang
+        title   <- trans $ articleTitle   art
+        summ    <- mapM trans $ articleSummary art
+        body    <- mapM (mapM (mapM trans)) $ articleBody art
+        created <- liftIO getCurrentTime
+        return $ Translation aID adminID lang title summ body created "[]"
+    let insertAndGo r = do tid <- runSQL $ insert r
+                           gotoViewTranslation r
+    either (renderSimpleStr . show) insertAndGo res
 
 -- | Show translations for chosen Article in chosen Language
 viewTranslation :: Key Article -> Language -> TTNAction ctx a

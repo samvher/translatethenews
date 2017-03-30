@@ -2,21 +2,22 @@
 
 {-# Language RecordWildCards, OverloadedStrings #-}
 
-module Language.Bing( BingLanguage(..)
-                    , BingContext
-                    , BingError(..)
-                    , AzureKey
-                    , checkToken
-                    , evalBing
-                    , execBing
-                    , getAccessToken
-                    , getAccessTokenEither
-                    , getBingCtx
-                    , runBing
-                    , runExceptT
-                    , translate
-                    , translateM
-                    ) where
+module TTN.Bing( BingContext
+               , BingError(..)
+               , AzureKey
+               , checkToken
+               , evalBing
+               , execBing
+               , getAccessToken
+               , getAccessTokenEither
+               , getBingCtx
+               , runBing
+               , runExceptT
+               , translate
+               , translateM
+               ) where
+
+import TTN.Model.Language
 
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
@@ -47,23 +48,6 @@ type AzureKey = ByteString
 
 data BingError = BingError ByteString
                  deriving ( Show )
-
-data BingLanguage = English
-                  | German
-                  | Indonesian
-                  | Norwegian
-                  | Russian
-                  | Spanish
-                  | Turkish
-
--- | Conversion function from Language to language code
-toSym bl = case bl of English    -> "en"
-                      German     -> "de"
-                      Indonesian -> "id"
-                      Norwegian  -> "no"
-                      Russian    -> "ru"
-                      Spanish    -> "es"
-                      Turkish    -> "tr"
 
 type AccessToken = ByteString
 
@@ -106,10 +90,6 @@ tokenAuthPage = "https://api.cognitive.microsoft.com/sts/v1.0/issueToken"
 
 translateUrl :: String
 translateUrl = "https://api.microsofttranslator.com/v2/Http.svc/Translate"
- 
-translateArgs text from to = [ "text" N.:= (text       :: ByteString),
-                               "from" N.:= (toSym from :: ByteString),
-                               "to"   N.:= (toSym to   :: ByteString) ]
 
 bingAction :: MonadIO m =>
               IO (N.Response BL.ByteString)
@@ -159,11 +139,11 @@ withContext = BM
 
 -- | Action that translates text inside a BingMonad context.
 translateM :: MonadIO m =>
-              Text -> BingLanguage -> BingLanguage -> BingMonad m Text
+              Text -> Language -> Language -> BingMonad m Text
 translateM text from to = do
   let opts =   N.defaults
-             & N.param "from"        .~ [toSym from :: Text]
-             & N.param "to"          .~ [toSym to]
+             & N.param "from"        .~ [langCode from :: Text]
+             & N.param "to"          .~ [langCode to]
              & N.param "contentType" .~ ["text/plain"]
              & N.param "category"    .~ ["general"]
              & N.param "text"        .~ [text]
@@ -203,8 +183,8 @@ getAccessTokenEither = runExceptT . getAccessToken
 -- translateM, runBing and getAccessToken
 translate :: AzureKey
           -> Text
-          -> BingLanguage
-          -> BingLanguage
+          -> Language
+          -> Language
           -> IO (Either BingError Text)
 translate key text from to = evalBing key $ translateM text from to
 

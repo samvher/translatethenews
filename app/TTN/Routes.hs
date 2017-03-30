@@ -32,11 +32,16 @@ viewArticlePath = renderRoute viewArticleR . articleID
 editArticlePath = renderRoute editArticleR . articleID
 
 -- | Arguments are first article id, then language
-newTranslationR, viewTranslationR :: Path '[Key Article, Language] Open
+autoTranslationR, newTranslationR, viewTranslationR
+  :: Path '[Key Article, Language] Open
+autoTranslationR = "articles" <//> var <//> "translations" <//> var <//> "auto"
 newTranslationR  = "articles" <//> var <//> "translations" <//> var <//> "new"
 viewTranslationR = "articles" <//> var <//> "translations" <//> var <//> "view"
 
-newTranslationPath, viewTranslationPath :: Entity Article -> Language -> Text
+autoTranslationPath, newTranslationPath, viewTranslationPath :: Entity Article
+                                                             -> Language
+                                                             -> Text
+autoTranslationPath a = renderRoute autoTranslationR (articleID a)
 newTranslationPath  a = renderRoute newTranslationR  (articleID a)
 viewTranslationPath a = renderRoute viewTranslationR (articleID a)
 
