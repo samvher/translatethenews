@@ -11,6 +11,7 @@ import TTN.Routes
 
 import TTN.Controller.Article
 import TTN.Controller.Core
+import TTN.Controller.Migrate
 import TTN.Controller.User
 import TTN.Model.Core
 
@@ -40,8 +41,9 @@ app = do middleware . staticPolicy $ addBase "static"
                  getpost newArticleR           newArticle
                  get     viewArticleR          viewArticle
                  getpost newTranslationR       newTranslation
-             prehook adminOnlyHook $
+             prehook adminOnlyHook $ do
                  getpost editArticleR          editArticle
+                 get     migration1R           migrate1
 
 -- | Configures and runs the Spock server
 main :: IO ()

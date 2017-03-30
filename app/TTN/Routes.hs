@@ -79,3 +79,6 @@ registerPath     = renderRoute registerR
 profilePath      = renderRoute profileR
 rootPath         = renderRoute root
 
+migration1R :: Path '[] Open
+migration1R = "migrate1"
+

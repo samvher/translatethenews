@@ -38,6 +38,7 @@ executable translatethenews
                      , TTN.Util
                      , TTN.Controller.Article
                      , TTN.Controller.Core
+                     , TTN.Controller.Migrate
                      , TTN.Controller.Shared
                      , TTN.Controller.User
                      , TTN.Model.Article
