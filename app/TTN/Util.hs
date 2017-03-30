@@ -31,10 +31,19 @@ checkNE = (> 0) . T.length
 
 -- | Funky zipper, type is self-explanatory
 innerZip :: [a] -> [[b]] -> [[(a,b)]]
-innerZip []        _ = []
-innerZip  _       [] = []
+innerZip []       __ = []
+innerZip __       [] = []
 innerZip xs (ys:yss) = zip as ys : innerZip bs yss
     where (as, bs) = splitAt (length ys) xs
+
+zipMaybe :: [a] -> [b] -> [(a, Maybe b)]
+zipMaybe (x:xs) (y:ys) = (x, Just y)  : zipMaybe xs ys
+zipMaybe (x:xs)    []  = (x, Nothing) : zipMaybe xs []
+zipMaybe    []     __  = []
+
+zipMaybe' :: [a] -> Maybe [b] -> [(a, Maybe b)]
+zipMaybe' xs Nothing   = zip xs $ repeat Nothing
+zipMaybe' xs (Just ys) = zipMaybe xs ys
 
 -- * Functions related to parsing
 

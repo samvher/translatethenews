@@ -43,6 +43,9 @@ Translation sql=translations
   deriving Read Show
 |]
 
+entTranslation :: Entity Translation -> Translation
+entTranslation (Entity _ t) = t
+
 getArticlesTranslatedToLang :: Language -> SqlPersistM [Entity Article]
 getArticlesTranslatedToLang lang = rawSql query [toPersistValue lang]
   where query = T.unwords [ "SELECT DISTINCT ?? FROM translations"
