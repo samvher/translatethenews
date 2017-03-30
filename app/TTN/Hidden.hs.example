@@ -2,16 +2,11 @@
 
 module TTN.Hidden where
 
-import Data.Text                  ( Text )
-import Database.PostgreSQL.Simple ( ConnectInfo(..)
-                                  , defaultConnectInfo )
+import Data.Text                   ( Text )
+import Database.Persist.Postgresql ( ConnectionString )
 
-ttnConnInfo :: ConnectInfo
-ttnConnInfo = defaultConnectInfo {
-                connectHost = "myhost",
-                connectUser = "myuser",
-                connectPassword = "mypass",
-                connectDatabase = "mydb" }
+ttnConnString :: ConnectionString
+ttnConnString = "host=localhost dbname=dbuser user=user password=pass"
 
 salt :: Text
 salt = "mysalt"
