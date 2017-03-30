@@ -60,6 +60,15 @@ guestOnlyHook = do oldCtx      <- S.getContext
                    if logInStatus then noAccess loggedIn
                                   else return (IsGuest :&: oldCtx)
 
+adminOnlyHook :: TTNAction (HVect xs) (HVect (IsAdmin ': xs))
+adminOnlyHook = do oldCtx <- S.getContext
+                   u      <- sessUser <$> S.readSession
+                   case u of
+                     Nothing              -> noAccess mustLogin
+                     Just (Entity _ user) -> if userName user == "test"
+                                                then return (IsAdmin :&: oldCtx)
+                                                else noAccess noPermission
+
 -- * Password hashing
 
 -- | Use SHA256 and some trivial transformations

@@ -39,9 +39,9 @@ app = do middleware . staticPolicy $ addBase "static"
                  get     logoutR               processLogout
                  getpost newArticleR           newArticle
                  get     viewArticleR          viewArticle
-                 -- Gone. For now, we'll keep articles static.
-                 -- getpost editArticleR          editArticle
                  getpost newTranslationR       newTranslation
+             prehook adminOnlyHook $
+                 getpost editArticleR          editArticle
 
 -- | Configures and runs the Spock server
 main :: IO ()

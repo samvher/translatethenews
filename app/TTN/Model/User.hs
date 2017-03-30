@@ -43,4 +43,5 @@ entUser (Entity _ u) = u
 
 -- | For type-safe authentication
 data IsGuest = IsGuest
+data IsAdmin = IsAdmin
 

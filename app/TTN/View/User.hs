@@ -86,3 +86,7 @@ loggedIn = div_ [id_ "simple-message"] $ do
     a_ [href_ logoutPath] $ h "Log out"
     h " if you want to go here."
 
+noPermission :: TTNView ctx ()
+noPermission = div_ [id_ "simple-message"] $ do
+    h "You don't have permission to view this page."
+
