@@ -2,6 +2,7 @@
 
 module TTN.Hidden where
 
+import Data.ByteString             ( ByteString )
 import Data.Text                   ( Text )
 import Database.Persist.Postgresql ( ConnectionString )
 
@@ -10,4 +11,7 @@ ttnConnString = "host=localhost dbname=dbuser user=user password=pass"
 
 salt :: Text
 salt = "mysalt"
+
+azureKey :: ByteString
+azureKey = "azurekey"
 
