@@ -105,7 +105,7 @@ tokenAuthPage :: String
 tokenAuthPage = "https://api.cognitive.microsoft.com/sts/v1.0/issueToken"
 
 translateUrl :: String
-translateUrl = "http://api.microsofttranslator.com/v2/Http.svc/Translate"
+translateUrl = "https://api.microsofttranslator.com/v2/Http.svc/Translate"
  
 translateArgs text from to = [ "text" N.:= (text       :: ByteString),
                                "from" N.:= (toSym from :: ByteString),
