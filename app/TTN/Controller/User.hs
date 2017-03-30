@@ -65,7 +65,7 @@ adminOnlyHook = do oldCtx <- S.getContext
                    u      <- sessUser <$> S.readSession
                    case u of
                      Nothing              -> noAccess mustLogin
-                     Just (Entity _ user) -> if userName user == "test"
+                     Just (Entity _ user) -> if userName user == "admin"
                                                 then return (IsAdmin :&: oldCtx)
                                                 else noAccess noPermission
 
