@@ -180,13 +180,17 @@ getArtTranslations aID lang = do
 -- | Serve and process new-Translation form
 newTranslation :: Key Article -> Language -> TTNAction ctx a
 newTranslation aID lang = do
-    (art, ts) <- getArtTranslations aID lang
-    let translateForm = mkTranslateForm art ts lang
-        renderer      = renderTranslate art lang $
+    (ea@(Entity _ art), ts) <- getArtTranslations aID lang
+    let translateForm = mkTranslateForm ea ts lang
+        renderer      = renderTranslate ea lang $
                             S.renderRoute newTranslationR aID lang
+        updateAvTrans current added = if added `elem` current
+                                         then current
+                                         else sort $ added : current
     serveForm "translate" translateForm renderer $ \t -> do
-        runSQL $ insert t
-        -- updateAvTrans aID -- SUPERTODO: update available translations list
+        runSQL $ do
+          insert t
+          update aID [ArticleAvTrans =. updateAvTrans (articleAvTrans art) lang]
         gotoViewTranslation t
 
 -- | Show translations for chosen Article in chosen Language

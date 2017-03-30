@@ -23,7 +23,7 @@ data Language = English
               | Russian
               | Turkish
               | Indonesian
-                deriving ( Eq, Read, Show )
+                deriving ( Eq, Ord, Read, Show )
 
 derivePersistField "Language"
 
