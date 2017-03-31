@@ -134,6 +134,8 @@ renderTranslate ea@(Entity aid art) lang target view =
         div_ [id_ "gt-link"] $ renderGTranslate (articleOrigLang art) lang
                                                 (articleUrl art)
                                                 "View on Google Translate"
+        div_ [id_ "auto-link"] . a_ [href_ $ autoTranslationPath ea lang] $
+                                      h "Pre-fill with Bing translate (slow)"
         h3_ $ h "Title"
         toHtml $ articleTitle art
         inputText_ "translate.title" "" view

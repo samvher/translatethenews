@@ -5,6 +5,7 @@ Author      : Sam van Herwaarden <samvherwaarden@protonmail.com>
 -}
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module TTN.Controller.Article where
 
@@ -113,6 +114,12 @@ listArticles = renderPage . renderArticleList =<< runSQL getArticleList
 -- updateAvTrans aID = do art   <- findArticle aID
 --                        langs <- runQuerySafe $ getTransLangs aID
 --                        runQuerySafe $ updateArticle art { artAvTrans = langs }
+updateAvTrans :: Entity Article -> Language -> TTNAction ctx ()
+updateAvTrans ea@(Entity aID art) lang = runSQL $
+    update aID [ArticleAvTrans =. updateLangList (articleAvTrans art) lang]
+  where updateLangList current added = if added `elem` current
+                                          then current
+                                          else sort $ added : current
 -- 
 -- | Article listing for specific language (where translation to this
 --   language is available). -- TODO: This naming confuses even me.
@@ -198,13 +205,9 @@ newTranslation aID lang = do
     let translateForm = mkTranslateForm ea ts lang
         renderer      = renderTranslate ea lang $
                             S.renderRoute newTranslationR aID lang
-        updateAvTrans current added = if added `elem` current
-                                         then current
-                                         else sort $ added : current
     serveForm "translate" translateForm renderer $ \t -> do
-        runSQL $ do
-          insert t
-          update aID [ArticleAvTrans =. updateAvTrans (articleAvTrans art) lang]
+        runSQL $ insert t
+        updateAvTrans ea lang
         gotoViewTranslation t
 
 getAdminID :: TTNAction ctx (Key User)
@@ -216,10 +219,10 @@ getAdminID = do admin <- runSQL $ selectFirst [ UserName ==. "admin" ] []
 
 autoTranslation :: Key Article -> Language -> TTNAction ctx a
 autoTranslation aID lang = do
-    ma <- runSQL $ get aID
+    ma <- getArticleById aID
     when (isNothing ma) $ renderSimpleStr "Article not found"
     adminID <- getAdminID
-    let Just art = ma
+    let Just ea@(Entity _ art) = ma
     res <- liftIO . B.evalBing azureKey $ do
         let trans txt = B.translateM txt (articleOrigLang art) lang
         title   <- trans $ articleTitle   art
@@ -228,7 +231,8 @@ autoTranslation aID lang = do
         created <- liftIO getCurrentTime
         return $ Translation aID adminID lang title summ body created "[]"
     let insertAndGo r = do tid <- runSQL $ insert r
-                           gotoViewTranslation r
+                           updateAvTrans ea lang
+                           S.redirect $ newTranslationPath ea lang
     either (renderSimpleStr . show) insertAndGo res
 
 -- | Show translations for chosen Article in chosen Language

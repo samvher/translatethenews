@@ -57,12 +57,12 @@ h1 a:before {
   padding: 30px 20px;
 }
 
-#new-article-link, #edit-article-link, #gt-link {
+#new-article-link, #edit-article-link, #gt-link, #auto-link {
   height: 1.5em;
   margin-right: 0.6em;
 }
 
-#new-article-link a, #edit-article-link a, #gt-link a {
+#new-article-link a, #edit-article-link a, #gt-link a, #auto-link a {
   float: right;
   font-weight: bold;
 }
